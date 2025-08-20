@@ -27,6 +27,7 @@ extern "C" void app_main(void);
 static TaskHandle_t networkTaskHandle = NULL;
 static TaskHandle_t tcpServerTaskHandle = NULL;
 static TaskHandle_t atakTaskHandle = NULL;
+static TaskHandle_t atakProcessorTaskHandle = NULL;
 static TaskHandle_t uiTaskHandle = NULL;
 static TaskHandle_t audioTaskHandle = NULL;
 static TaskHandle_t gpsTaskHandle = NULL;
@@ -227,6 +228,76 @@ CLEAN_UP:
     vTaskDelete(NULL);
 }
 
+// Helper function to parse a value from a CoT XML string
+static std::string parse_cot_value(const std::string& cot, const char* key) {
+    size_t key_pos = cot.find(key);
+    if (key_pos == std::string::npos) return "";
+    key_pos += strlen(key); // Move to the start of the value
+    size_t end_quote_pos = cot.find('"', key_pos);
+    if (end_quote_pos == std::string::npos) return "";
+    return cot.substr(key_pos, end_quote_pos - key_pos);
+}
+
+void atak_processor_task(void *pvParameters) {
+    ESP_LOGI(TAG, "ATAK Processor task started");
+
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (sock < 0) {
+        ESP_LOGE(TAG, "ATAK RX: Unable to create socket: errno %d", errno);
+        vTaskDelete(NULL);
+    }
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(ATAK_PORT);
+    int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    if (err < 0) {
+        ESP_LOGE(TAG, "ATAK RX: Socket unable to bind: errno %d", errno);
+    }
+
+    for(;;) {
+        struct sockaddr_in source_addr;
+        socklen_t socklen = sizeof(source_addr);
+        uint8_t rx_buffer[1500];
+        int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+
+        if (len > 0) {
+            AirComPacket *packet = air_com_packet__unpack(NULL, len, rx_buffer);
+            if (packet && packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_COT_MESSAGE) {
+                ESP_LOGI(TAG, "Received CoT message");
+                std::string cot_xml = packet->cot_message;
+
+                TeammateInfo new_info;
+                new_info.callsign = parse_cot_value(cot_xml, "callsign=\"");
+                new_info.lat = std::stod(parse_cot_value(cot_xml, "lat=\""));
+                new_info.lon = std::stod(parse_cot_value(cot_xml, "lon=\""));
+                new_info.last_update_time = pdTICKS_TO_MS(xTaskGetTickCount());
+
+                if (xSemaphoreTake(g_teammate_locations_mutex, portMAX_DELAY) == pdTRUE) {
+                    bool found = false;
+                    for (auto& teammate : g_teammate_locations) {
+                        if (teammate.callsign == new_info.callsign) {
+                            teammate = new_info;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        g_teammate_locations.push_back(new_info);
+                    }
+                    xSemaphoreGive(g_teammate_locations_mutex);
+                }
+            }
+            if (packet) {
+                air_com_packet__free_unpacked(packet, NULL);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(100)); // Prevent busy-looping
+    }
+    close(sock);
+    vTaskDelete(NULL);
+}
+
 
 void app_main(void)
 {
@@ -242,6 +313,8 @@ void app_main(void)
     xTaskCreatePinnedToCore(networkTask, "Network", STACK_SIZE_DEFAULT, NULL, 5, &networkTaskHandle, 0);
     xTaskCreatePinnedToCore(tcp_server_task, "TCPServer", STACK_SIZE_DEFAULT, NULL, 5, &tcpServerTaskHandle, 0);
     xTaskCreatePinnedToCore(atakTask, "ATAK", STACK_SIZE_DEFAULT, NULL, 5, &atakTaskHandle, 0);
+    xTaskCreatePinnedToCore(atak_processor_task, "ATAKProc", STACK_SIZE_DEFAULT, NULL, 4, &atakProcessorTaskHandle, 0);
+
 
     // Core 1: Real-time UI and peripherals
     xTaskCreatePinnedToCore(uiTask, "UI", STACK_SIZE_DEFAULT, NULL, 5, &uiTaskHandle, 1);

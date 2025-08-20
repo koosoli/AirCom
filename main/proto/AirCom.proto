@@ -28,6 +28,7 @@ message AirComPacket {
   oneof payload_variant {
     TextMessage text_message = 4;
     NodeInfo node_info = 5;
-    // Future message types like audio control packets can be added here
+    // A Cursor-on-Target XML message, used for ATAK integration
+    string cot_message = 6;
   }
 }

@@ -2,6 +2,7 @@
 #include "include/config.h"
 #include "include/gps_task.h"
 #include "HaLowMeshManager.h"
+#include "AirCom.pb-c.h"
 #include "esp_log.h"
 #include "esp_system.h" // For MAC address
 #include <string>
@@ -60,15 +61,23 @@ void atakTask(void *pvParameters) {
 
         GPSData data = gps_get_data();
         if (data.isValid) {
-            std::string cotMessage = generateCoT(data);
-            ESP_LOGI(TAG, "Broadcasting CoT message...");
-            // ESP_LOGD(TAG, "%s", cotMessage.c_str()); // Use for debugging if needed
+            std::string cot_xml = generateCoT(data);
 
-            meshManager.sendUdpMulticast(
-                (const uint8_t*)cotMessage.c_str(),
-                cotMessage.length(),
-                ATAK_PORT
-            );
+            // 1. Create the protobuf packet
+            AirComPacket packet = AIR_COM_PACKET__INIT;
+            packet.payload_variant_case = AIR_COM_PACKET__PAYLOAD_VARIANT_COT_MESSAGE;
+            packet.cot_message = (char*)cot_xml.c_str();
+
+            // 2. Serialize the packet
+            size_t packed_size = air_com_packet__get_packed_size(&packet);
+            uint8_t *buffer = (uint8_t *)malloc(packed_size);
+            air_com_packet__pack(&packet, buffer);
+
+            // 3. Broadcast the serialized packet.
+            ESP_LOGI(TAG, "Broadcasting CoT protobuf message...");
+            meshManager.sendUdpMulticast(buffer, packed_size, ATAK_PORT);
+            free(buffer);
+
         } else {
             ESP_LOGW(TAG, "ATAK task: No valid GPS lock, skipping broadcast.");
         }

@@ -15,6 +15,14 @@ struct MeshNodeInfo {
     std::string ipAddress;
 };
 
+// Structure to hold tactical info about a teammate
+struct TeammateInfo {
+    std::string callsign;
+    double lat;
+    double lon;
+    uint32_t last_update_time;
+};
+
 
 // A structure to hold status updates for the UI
 typedef struct {
@@ -55,6 +63,10 @@ typedef struct {
 
 // A queue for the network task to send incoming messages to the UI task
 extern QueueHandle_t incoming_message_queue;
+
+// A shared vector to hold the tactical information of all teammates
+extern std::vector<TeammateInfo> g_teammate_locations;
+extern SemaphoreHandle_t g_teammate_locations_mutex;
 
 
 void shared_data_init();

@@ -15,6 +15,7 @@ typedef enum {
     UI_STATE_MAIN,
     UI_STATE_CONTACTS,
     UI_STATE_CHAT,
+    UI_STATE_MAP,
     // Add other states like settings, etc.
 } ui_state_t;
 
@@ -92,6 +93,16 @@ static void drawChatScreen() {
     u8g2_DrawBox(&u8g2, text_entry_cursor_pos * 6, 54, 5, 2);
 
     u8g2_DrawStr(&u8g2, 0, 64, "^ Back | Send (L)");
+}
+
+static void drawMapScreen() {
+    u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
+    u8g2_DrawStr(&u8g2, 20, 10, "--- Tactical Map ---");
+    u8g2_DrawDisc(&u8g2, 64, 36, 2, U8G2_DRAW_ALL); // User in the center
+    u8g2_DrawStr(&u8g2, 58, 50, "You");
+
+    // TODO: Draw teammates
+    u8g2_DrawStr(&u8g2, 0, 64, "^ Back");
 }
 
 
