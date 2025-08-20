@@ -1,0 +1,34 @@
+// Protocol Buffers definition for Project AirCom
+syntax = "proto3";
+
+// A message from one node to another, containing text.
+message TextMessage {
+  string text = 1;      // The UTF8 encoded text payload
+}
+
+// Information about a node on the mesh. Sent periodically for discovery.
+message NodeInfo {
+  string callsign = 1;  // User's chosen callsign
+  string node_id = 2;   // Unique node ID (e.g., MAC address)
+}
+
+// A wrapper message for all packets sent over the mesh.
+// This allows us to easily add new message types in the future.
+message AirComPacket {
+  // Unique, monotonically increasing ID for this packet from this node
+  uint32 packet_id = 1;
+
+  // The node ID of the original sender
+  string from_node = 2;
+
+  // The node ID of the intended recipient (broadcast if empty)
+  string to_node = 3;
+
+  // The specific payload of this packet
+  oneof payload_variant {
+    TextMessage text_message = 4;
+    NodeInfo node_info = 5;
+    // A Cursor-on-Target XML message, used for ATAK integration
+    string cot_message = 6;
+  }
+}
