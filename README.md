@@ -6,11 +6,20 @@ This repository contains the complete PlatformIO firmware for "Project AirCom," 
 
 The device functions as a mesh-networked walkie-talkie, text messenger, and an ATAK (Android Team Awareness Kit) compatible location beacon. It is designed for off-grid communication in scenarios where cellular service is unavailable, such as disaster response, wilderness expeditions, or tactical operations. As a robust, low-power, long-range communication tool, it provides a critical lifeline for teams operating in remote environments, with a key focus on providing high-quality voice communications.
 
-## Current Status
+## Current Status: Conceptual Prototype
 
-This firmware is **Feature Complete** at the application logic level. The core architecture is fully implemented, all required FreeRTOS tasks are running, and the high-level logic for every feature is in place. The project is now ready for final hardware integration and testing.
+This firmware is an **early-stage conceptual prototype**. It should not be considered feature-complete or production-ready.
 
-The final step is to replace the hardware abstraction stubs (`HaLowMeshManager`, `Opus` codec, `E2E Encryption`) with the real-world, production drivers and libraries for the target hardware.
+The purpose of this codebase is to provide a complete and robust **architectural foundation** for the project. The high-level application logic, FreeRTOS task structure, and inter-task communication are all in place. However, the code is **untested on real hardware** and requires significant work to become a field-ready product.
+
+## Next Steps & Final Implementation
+
+To create a final, production-ready binary, a developer must replace the current placeholders with real, hardware-specific drivers and libraries. The key remaining tasks are:
+
+1.  **Integrate the Wi-Fi HaLow SDK**: The `HaLowMeshManager` component is a wrapper. The vendor-specific SDK for the chosen HaLow chipset must be added and its functions called from within the existing C++ methods.
+2.  **Integrate the Opus Codec**: The `Opus` component is a placeholder. A pre-compiled, ESP32-optimized `libopus.a` binary and its headers must be added to the component. The `audioTask` can then be updated to call the real encoding/decoding functions.
+3.  **Implement Production-Grade Encryption**: The `crypto.cpp` file uses placeholder functions. For real security, a trusted library like `libsodium` must be added as a component, and the functions in `crypto.cpp` must be updated to call its robust cryptographic APIs. **The current implementation provides no real security.**
+4.  **Testing and Debugging**: The entire system must be tested on the target hardware to validate functionality and performance.
 
 ## How It Works
 
@@ -20,9 +29,10 @@ The firmware is built on the **ESP-IDF framework** and leverages **FreeRTOS** to
     *   `networkTask`: Manages the Wi-Fi HaLow mesh network, including broadcasting discovery packets (using Protobufs) to find other nodes. It also handles the routing of outgoing text messages.
     *   `tcp_server_task`: Listens for incoming TCP connections for text messages, decrypts them (stub), unpacks the protobuf, and forwards the message to the UI task.
     *   `atakTask`: Periodically reads GPS data and broadcasts it as an ATAK-compatible Cursor-on-Target (CoT) XML packet over the mesh.
+    *   `atak_processor_task`: Listens for incoming CoT packets from teammates, parses them, and updates a shared data store of their locations.
 
 *   **Core 1 (Application Core):** Handles real-time peripherals and user interaction.
-    *   `uiTask`: Manages the OLED display and all user input. It runs a state machine to switch between screens (Main, Contacts, Chat) and uses a dedicated button handler with debouncing and long-press detection. It receives updates from other tasks via queues to display dynamic information.
+    *   `uiTask`: Manages the OLED display and all user input. It runs a state machine to switch between screens (Main, Contacts, Map, Chat) and uses a dedicated button handler with debouncing and long-press detection. It receives updates from other tasks via queues to display dynamic information.
     *   `gpsTask`: Continuously reads and parses NMEA sentences from the hardware UART connected to the GPS module.
     *   `audioTask`: Manages the Push-to-Talk (PTT) functionality. On PTT press, it reads from the I2S microphone, encodes with Opus (stub), and broadcasts over UDP. It simultaneously listens for incoming UDP voice packets, decodes them, and plays them on the I2S speaker.
 
@@ -49,18 +59,3 @@ Inspired by projects like Meshtastic, this firmware uses Google's Protocol Buffe
 3.  Connect your ESP32-S3 target board.
 4.  Run `platformio run --target upload` to build and flash the firmware.
 5.  Use `platformio device monitor` to view logging output.
-
-## Hardware Dependencies and Final Implementation
-This firmware is a complete application layer and architecture. To create a final, production-ready binary, you must provide the following hardware-specific and security-critical components:
-
-1.  **Wi-Fi HaLow SDK**:
-    *   **What is needed**: The proprietary SDK (header files and binary library) from the manufacturer of your Wi-Fi HaLow chip.
-    *   **How to integrate**: Add the SDK files to the `components/HaLowManager` component and update the C++ methods in `HaLowMeshManager.cpp` to call the appropriate SDK functions for initialization and packet transmission.
-
-2.  **Opus Codec Library**:
-    *   **What is needed**: A pre-compiled binary (`libopus.a`) of the Opus codec, optimized for the ESP32, along with its public headers.
-    *   **How to integrate**: Place the `.a` file in `components/Opus/lib/` and the header files in `components/Opus/include/`. The build system is already configured to link it automatically. Then, uncomment the Opus-related function calls in `audio_task.cpp`.
-
-3.  **End-to-End Encryption Library**:
-    *   **What is needed**: A trusted, peer-reviewed cryptographic library like `libsodium`.
-    *   **How to integrate**: Add the library as a new ESP-IDF component. Replace the placeholder functions in `crypto.cpp` with calls to the real library's functions for key generation, encryption, and decryption. **The current XOR cipher is for demonstration only and provides no real security.**
