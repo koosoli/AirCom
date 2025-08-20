@@ -98,10 +98,32 @@ static void drawChatScreen() {
 static void drawMapScreen() {
     u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
     u8g2_DrawStr(&u8g2, 20, 10, "--- Tactical Map ---");
-    u8g2_DrawDisc(&u8g2, 64, 36, 2, U8G2_DRAW_ALL); // User in the center
-    u8g2_DrawStr(&u8g2, 58, 50, "You");
+    u8g2_DrawDisc(&u8g2, 64, 32, 2, U8G2_DRAW_ALL); // User in the center
+    u8g2_DrawStr(&u8g2, 58, 48, "You");
 
-    // TODO: Draw teammates
+    if (xSemaphoreTake(g_teammate_locations_mutex, (TickType_t)10) == pdTRUE) {
+        GPSData my_location = gps_get_data();
+        if (my_location.isValid) {
+            for (const auto& teammate : g_teammate_locations) {
+                // This is a very simplified projection. A real implementation would use a proper map projection.
+                // It calculates a simple relative vector and scales it to the screen.
+                double delta_lon = teammate.lon - my_location.longitude;
+                double delta_lat = teammate.lat - my_location.latitude;
+
+                // Simple scaling - this needs to be calibrated for a real-world scale
+                int x = 64 + (int)(delta_lon * 50000);
+                int y = 32 - (int)(delta_lat * 50000);
+
+                // Clamp to screen edges
+                if (x < 0) x = 0; if (x > 127) x = 127;
+                if (y < 12) y = 12; if (y > 63) y = 63;
+
+                u8g2_DrawStr(&u8g2, x, y, teammate.callsign.c_str());
+            }
+        }
+        xSemaphoreGive(g_teammate_locations_mutex);
+    }
+
     u8g2_DrawStr(&u8g2, 0, 64, "^ Back");
 }
 
@@ -185,6 +207,14 @@ void uiTask(void *pvParameters) {
             case UI_STATE_MAIN:
                 if (is_button_just_pressed(BUTTON_SELECT)) {
                     current_ui_state = UI_STATE_CONTACTS;
+                }
+                if (is_button_just_pressed(BUTTON_UP)) {
+                    current_ui_state = UI_STATE_MAP;
+                }
+                break;
+            case UI_STATE_MAP:
+                if (is_button_just_pressed(BUTTON_BACK)) {
+                    current_ui_state = UI_STATE_MAIN;
                 }
                 break;
             case UI_STATE_CONTACTS:
@@ -283,6 +313,9 @@ void uiTask(void *pvParameters) {
                     break;
                 case UI_STATE_CHAT:
                     drawChatScreen();
+                    break;
+                case UI_STATE_MAP:
+                    drawMapScreen();
                     break;
             }
         } while (u8g2_NextPage(&u8g2));
