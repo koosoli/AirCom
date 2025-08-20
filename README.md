@@ -16,7 +16,7 @@ This firmware is currently in the **initial scaffolding and development phase**.
 *   **ATAK Integration:** An `atakTask` periodically fetches data from the `gpsTask` and broadcasts valid Cursor-on-Target (CoT) XML messages over the mesh network.
 *   **Display:** A `uiTask` is running and successfully initializes the OLED display using the `u8g2` graphics library, which has been integrated as a set of ESP-IDF components. It currently displays a static main screen.
 
-**Remaining High-Level Tasks:**
+**Next Steps / Remaining High-Level Tasks:**
 *   Implement the Opus audio codec and the `audioTask` for PTT functionality.
 *   Implement the UI state machine for navigating between screens (Contacts, Chat, etc.).
 *   Implement button handling for user input.
