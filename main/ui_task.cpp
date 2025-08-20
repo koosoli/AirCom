@@ -86,12 +86,12 @@ static void drawChatScreen() {
     }
 
     // Draw the new message being composed
-    u8g2_DrawStr(&u8g2, 0, 46, current_message.c_str());
+    u8g2_DrawStr(&u8g2, 0, 52, current_message.c_str());
 
     // Draw the cursor
-    u8g2_DrawBox(&u8g2, text_entry_cursor_pos * 6, 48, 5, 2);
+    u8g2_DrawBox(&u8g2, text_entry_cursor_pos * 6, 54, 5, 2);
 
-    u8g2_DrawStr(&u8g2, 0, 60, "^ Back | Send (L)");
+    u8g2_DrawStr(&u8g2, 0, 64, "^ Back | Send (L)");
 }
 
 
