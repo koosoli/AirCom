@@ -30,23 +30,15 @@ The firmware is built on the **ESP-IDF framework** and leverages **FreeRTOS** to
 
 ### Wi-Fi HaLow (IEEE 802.11ah) vs. LoRa
 
-While projects like **Meshtastic** have successfully created mesh networks using **LoRa**, this project uses **Wi-Fi HaLow** for several key advantages, particularly for the target use case of first responders and tactical teams:
+This project uses **Wi-Fi HaLow** to optimize for high-throughput applications that can support both data and high-quality voice. This represents a different set of engineering trade-offs compared to popular LoRa-based projects like **Meshtastic**.
 
-1.  **Significantly Higher Bandwidth**:
-    *   **LoRa**: Typically offers bandwidth in the kilobits per second (kbps). This is excellent for short, intermittent data like text messages or GPS coordinates, but it is highly constrained for real-time, high-quality voice.
-    *   **Wi-Fi HaLow**: Offers bandwidth in the megabits per second (Mbps). This is orders of magnitude higher than LoRa.
+*   **Bandwidth vs. Range**: While LoRa-based networks often achieve a longer maximum point-to-point range, Wi-Fi HaLow provides significantly more bandwidth (Mbps vs. kbps). This project prioritizes data rate to support its core features.
 
-2.  **Superior Voice Communication**:
-    *   The primary advantage of HaLow's bandwidth is its ability to support **clear, low-latency, high-quality voice streams**. For first responders, intelligible voice communication is non-negotiable. Our project uses the Opus codec, which can provide excellent voice quality at bitrates (e.g., 24-32 kbps) that are trivial for HaLow to handle but challenging or impossible for LoRa.
+*   **Voice & High-Data Applications**: The primary advantage of HaLow's bandwidth is its ability to support clear, low-latency, high-quality voice streams using codecs like Opus. This is a critical feature for first responders, tactical teams, and airsoft players, but it is very difficult to achieve on lower-bandwidth LoRa networks. This higher data rate also allows for future expansion into features like image or video transmission.
 
-3.  **IP-Based Networking**:
-    *   HaLow is a true IEEE 802.11 Wi-Fi standard. This means it operates as a standard IP network. This simplifies the entire software stack, allowing for the direct use of standard protocols like TCP/IP and UDP, as demonstrated in this firmware. It also allows for standard security protocols like WPA3.
-    *   LoRa requires a custom, non-IP networking stack (like LoRaWAN) to be built on top of the physical radio layer, adding complexity.
+*   **Standard IP Networking**: As a true IEEE 802.11 Wi-Fi standard, HaLow operates as a standard IP network. This simplifies the software stack, enabling the direct use of proven, standard protocols like TCP/IP, UDP, and WPA3 security, as demonstrated in this firmware.
 
-4.  **Scalability and Data Throughput**:
-    *   The higher data rate of HaLow allows the mesh network to support more nodes and handle more simultaneous data (ATAK updates, text messages, voice) without becoming congested.
-
-In summary, while LoRa is an excellent technology for low-bandwidth sensor networks, **Wi-Fi HaLow is a superior choice for a tactical communication device where clear voice and robust data throughput are critical requirements.** This makes it an ideal platform for airsoft players, first responders, and military units who require reliable, real-time communication.
+In summary, this project chooses Wi-Fi HaLow as the underlying technology to create a communications platform where high-throughput data and real-time voice are the primary requirements, accepting a potential trade-off in maximum range to achieve this goal.
 
 ### Protocol Buffers (Protobufs)
 Inspired by projects like Meshtastic, this firmware uses Google's Protocol Buffers instead of JSON for application-layer messaging. This provides a strongly-typed, versionable, and highly compact binary format for all network communication, reducing bandwidth usage and increasing reliability.
