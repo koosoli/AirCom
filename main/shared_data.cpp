@@ -4,6 +4,7 @@
 QueueHandle_t ui_update_queue;
 QueueHandle_t outgoing_message_queue;
 QueueHandle_t audio_command_queue;
+QueueHandle_t incoming_message_queue;
 std::vector<MeshNodeInfo> g_contact_list;
 SemaphoreHandle_t g_contact_list_mutex;
 
@@ -16,6 +17,9 @@ void shared_data_init() {
 
     // Create a queue for audio commands
     audio_command_queue = xQueueCreate(5, sizeof(audio_command_t));
+
+    // Create a queue for incoming messages
+    incoming_message_queue = xQueueCreate(5, sizeof(incoming_message_t));
 
     // Create a mutex for guarding access to the contact list.
     g_contact_list_mutex = xSemaphoreCreateMutex();

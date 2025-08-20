@@ -32,6 +32,7 @@ static int current_char_index = 0;
 // Static variables to hold the data for the UI
 static bool gps_lock_status = false;
 static uint8_t team_contact_count = 0;
+static std::vector<incoming_message_t> message_history;
 
 
 // Placeholder drawing functions for each state
@@ -79,12 +80,16 @@ static void drawChatScreen() {
     u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
     u8g2_DrawStr(&u8g2, 0, 10, buf);
 
-    // Draw the message buffer
-    u8g2_DrawStr(&u8g2, 0, 32, current_message.c_str());
+    // Display message history
+    for (size_t i = 0; i < message_history.size(); ++i) {
+        u8g2_DrawStr(&u8g2, 0, 22 + i * 10, message_history[i].message_text.c_str());
+    }
+
+    // Draw the new message being composed
+    u8g2_DrawStr(&u8g2, 0, 46, current_message.c_str());
 
     // Draw the cursor
-    u8g2_DrawBox(&u8g2, text_entry_cursor_pos * 6, 34, 5, 2);
-
+    u8g2_DrawBox(&u8g2, text_entry_cursor_pos * 6, 48, 5, 2);
 
     u8g2_DrawStr(&u8g2, 0, 60, "^ Back | Send (L)");
 }
@@ -126,14 +131,21 @@ void uiTask(void *pvParameters) {
         // 0. Check for updates from other tasks
         ui_update_t update;
         if (xQueueReceive(ui_update_queue, &update, (TickType_t)0) == pdPASS) {
-            // Check for a valid update signal for each field
             if (update.contact_count != 0xFF) {
                 team_contact_count = update.contact_count;
             }
-            // For the bool, we can't use 0xFF, so we'd need a more complex struct
-            // with update flags, but for now we assume the gps_task is the only one setting this.
-            // A better way is to have separate queues or specific message types.
-            gps_lock_status = update.has_gps_lock;
+            if (update.has_gps_lock != 0xFF) { // Assuming we can use 0xFF for bool too
+                gps_lock_status = update.has_gps_lock;
+            }
+        }
+        incoming_message_t incoming_msg;
+        if (xQueueReceive(incoming_message_queue, &incoming_msg, (TickType_t)0) == pdPASS) {
+            // For now, just add to history. A real implementation would check if the
+            // sender is the currently selected contact.
+            message_history.push_back(incoming_msg);
+            if (message_history.size() > 4) { // Keep only the last 4 messages
+                message_history.erase(message_history.begin());
+            }
         }
 
 

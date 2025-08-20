@@ -47,6 +47,15 @@ typedef enum {
 // A queue for the UI task to send commands to the audio task
 extern QueueHandle_t audio_command_queue;
 
+// A structure to hold an incoming text message for the UI
+typedef struct {
+    std::string sender_callsign;
+    std::string message_text;
+} incoming_message_t;
+
+// A queue for the network task to send incoming messages to the UI task
+extern QueueHandle_t incoming_message_queue;
+
 
 void shared_data_init();
 

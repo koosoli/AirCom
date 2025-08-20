@@ -5,6 +5,7 @@
 #include "driver/i2s.h"
 #include "opus.h"
 #include "HaLowMeshManager.h"
+#include "lwip/sockets.h"
 
 // I2S Configuration
 #define I2S_SAMPLE_RATE     (16000)
@@ -67,6 +68,22 @@ void audioTask(void *pvParameters) {
     // TODO: Initialize Opus Decoder
     // OpusDecoder *decoder = opus_decoder_create(I2S_SAMPLE_RATE, 1, &opus_error);
 
+    // Create a non-blocking UDP socket for receiving audio
+    int rx_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (rx_sock < 0) {
+        ESP_LOGE(TAG, "Unable to create RX socket: errno %d", errno);
+        vTaskDelete(NULL);
+    }
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(VOICE_PORT);
+    int err = bind(rx_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    if (err < 0) {
+        ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+    }
+    fcntl(rx_sock, F_SETFL, O_NONBLOCK);
+
     bool is_transmitting = false;
 
     // Main audio loop
@@ -84,17 +101,29 @@ void audioTask(void *pvParameters) {
         }
 
         if (is_transmitting) {
-            // TX LOGIC (STUB)
-            // 1. Read audio data from I2S microphone
-            // 2. Encode the audio using Opus
-            // 3. Broadcast the encoded frame over the mesh network
-            // ESP_LOGD(TAG, "Transmitting audio...");
+            // TX LOGIC
+            int16_t i2s_buffer[OPUS_FRAME_SIZE];
+            size_t bytes_read;
+            i2s_read(I2S_NUM, i2s_buffer, sizeof(i2s_buffer), &bytes_read, portMAX_DELAY);
+
+            if (bytes_read > 0) {
+                // In a real implementation, you would use the opus encoder here.
+                // For this stub, we will just send the raw data as a placeholder.
+                HaLowMeshManager::getInstance().sendUdpMulticast((const uint8_t*)i2s_buffer, bytes_read, VOICE_PORT);
+                ESP_LOGD(TAG, "Transmitted %d audio bytes", bytes_read);
+            }
         } else {
-            // RX LOGIC (STUB)
-            // 1. Listen on VOICE_PORT for UDP packets
-            // 2. Decode the packet payload using the codec
-            // 3. Implement jitter buffer
-            // 4. Write samples from jitter buffer to I2S speaker
+            // RX LOGIC
+            uint8_t rx_buf[MAX_PACKET_SIZE];
+            int len = recv(rx_sock, rx_buf, sizeof(rx_buf), 0);
+            if (len > 0) {
+                // In a real implementation, you would decode the opus data here.
+                // For this stub, we just assume the received data is raw PCM and play it.
+                // A real jitter buffer would be needed here.
+                size_t bytes_written;
+                i2s_write(I2S_NUM, rx_buf, len, &bytes_written, portMAX_DELAY);
+                ESP_LOGD(TAG, "Received and played %d audio bytes", bytes_written);
+            }
         }
 
         // Delay to allow other tasks to run

@@ -204,7 +204,10 @@ void tcp_server_task(void *pvParameters) {
                 if (packet) {
                     if (packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_TEXT_MESSAGE) {
                         ESP_LOGI(TAG, "Received Text Message: '%s'", packet->text_message->text);
-                        // TODO: Queue this message for the UI task to display
+                        incoming_message_t received_msg;
+                        received_msg.sender_callsign = packet->from_node;
+                        received_msg.message_text = packet->text_message->text;
+                        xQueueSend(incoming_message_queue, &received_msg, (TickType_t)0);
                     }
                     air_com_packet__free_unpacked(packet, NULL);
                 } else {
