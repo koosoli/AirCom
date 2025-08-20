@@ -228,6 +228,9 @@ CLEAN_UP:
     vTaskDelete(NULL);
 }
 
+// This task acts as an ATAK *client*. It receives CoT messages from other clients
+// on the network and updates the shared list of teammate locations. It does not
+// act as a TAK Server.
 // Helper function to parse a value from a CoT XML string
 static std::string parse_cot_value(const std::string& cot, const char* key) {
     size_t key_pos = cot.find(key);

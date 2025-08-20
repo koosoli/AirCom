@@ -49,3 +49,18 @@ Inspired by projects like Meshtastic, this firmware uses Google's Protocol Buffe
 3.  Connect your ESP32-S3 target board.
 4.  Run `platformio run --target upload` to build and flash the firmware.
 5.  Use `platformio device monitor` to view logging output.
+
+## Hardware Dependencies and Final Implementation
+This firmware is a complete application layer and architecture. To create a final, production-ready binary, you must provide the following hardware-specific and security-critical components:
+
+1.  **Wi-Fi HaLow SDK**:
+    *   **What is needed**: The proprietary SDK (header files and binary library) from the manufacturer of your Wi-Fi HaLow chip.
+    *   **How to integrate**: Add the SDK files to the `components/HaLowManager` component and update the C++ methods in `HaLowMeshManager.cpp` to call the appropriate SDK functions for initialization and packet transmission.
+
+2.  **Opus Codec Library**:
+    *   **What is needed**: A pre-compiled binary (`libopus.a`) of the Opus codec, optimized for the ESP32, along with its public headers.
+    *   **How to integrate**: Place the `.a` file in `components/Opus/lib/` and the header files in `components/Opus/include/`. The build system is already configured to link it automatically. Then, uncomment the Opus-related function calls in `audio_task.cpp`.
+
+3.  **End-to-End Encryption Library**:
+    *   **What is needed**: A trusted, peer-reviewed cryptographic library like `libsodium`.
+    *   **How to integrate**: Add the library as a new ESP-IDF component. Replace the placeholder functions in `crypto.cpp` with calls to the real library's functions for key generation, encryption, and decryption. **The current XOR cipher is for demonstration only and provides no real security.**

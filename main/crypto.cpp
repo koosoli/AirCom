@@ -3,32 +3,33 @@
 // ============================================================================
 // NOTE: This is a PLACEHOLDER for an end-to-end encryption layer.
 //
-// The functions below are simple stubs that do not provide any real security.
-// They exist to allow the application's messaging flow to be developed.
-// In a real-world application, these should be replaced with a robust
-// cryptographic library like libsodium or a custom AES-GCM implementation.
+// The functions below provide a simple XOR cipher. This is **NOT SECURE** and
+// is only intended to be a placeholder that simulates a real encryption layer.
+// It allows the application's data flow to be developed and tested before
+// a real cryptographic library (like libsodium or AES-GCM) is integrated.
 // ============================================================================
 
+// A simple, insecure key for the XOR cipher.
+const uint8_t XOR_KEY[] = {0x1A, 0x2B, 0x3C, 0x4D, 0x5E, 0x6F};
+
+static void xor_cipher(const std::vector<uint8_t>& input, std::vector<uint8_t>& output) {
+    output.clear();
+    output.reserve(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        output.push_back(input[i] ^ XOR_KEY[i % sizeof(XOR_KEY)]);
+    }
+}
 
 std::vector<uint8_t> encrypt_message(const std::string& plaintext) {
-    // STUB: This is NOT real encryption.
-    // It simply prepends "[ENC]" to the message to show the concept.
-    std::string encrypted_text = "[ENC]" + plaintext;
-    return std::vector<uint8_t>(encrypted_text.begin(), encrypted_text.end());
+    std::vector<uint8_t> input(plaintext.begin(), plaintext.end());
+    std::vector<uint8_t> encrypted_output;
+    xor_cipher(input, encrypted_output);
+    return encrypted_output;
 }
 
 
 std::string decrypt_message(const std::vector<uint8_t>& ciphertext) {
-    // STUB: This is NOT real decryption.
-    std::string received_text(ciphertext.begin(), ciphertext.end());
-
-    std::string prefix = "[ENC]";
-    if (received_text.rfind(prefix, 0) == 0) { // pos=0 limits the search to the prefix
-        // Found the prefix, return the rest of the string.
-        return received_text.substr(prefix.length());
-    }
-
-    // If the prefix isn't there, something is wrong. Return an empty string.
-    // A real implementation would have proper authentication tags to prevent this.
-    return "";
+    std::vector<uint8_t> decrypted_output;
+    xor_cipher(ciphertext, decrypted_output);
+    return std::string(decrypted_output.begin(), decrypted_output.end());
 }
