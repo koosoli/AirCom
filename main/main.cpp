@@ -13,6 +13,8 @@
 #include "HaLowMeshManager.h"
 #include "AirCom.pb-c.h"
 #include "crypto.h"
+#include "nvs_flash.h"
+#include "bt_audio.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -306,8 +308,19 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Welcome to Project AirCom (ESP-IDF)!");
 
+    // Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
     // Initialize shared data structures (like queues)
     shared_data_init();
+
+    // Initialize Bluetooth audio
+    bt_audio_init();
 
     // Create FreeRTOS tasks
     ESP_LOGI(TAG, "Creating tasks...");

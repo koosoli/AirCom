@@ -1,6 +1,7 @@
 #include "include/audio_task.h"
 #include "include/config.h"
 #include "include/shared_data.h"
+#include "bt_audio.h"
 #include "esp_log.h"
 #include "driver/i2s.h"
 #include "opus.h"
@@ -136,29 +137,51 @@ void audioTask(void *pvParameters) {
             }
         }
 
-        if (is_transmitting) {
-            // TX LOGIC
-            int16_t i2s_buffer[OPUS_FRAME_SIZE];
-            size_t bytes_read;
-            i2s_read(I2S_NUM, i2s_buffer, sizeof(i2s_buffer), &bytes_read, portMAX_DELAY);
-
-            if (bytes_read > 0) {
-                // In a real implementation, you would use the opus encoder here.
-                // For this stub, we will just send the raw data as a placeholder.
-                HaLowMeshManager::getInstance().sendUdpMulticast((const uint8_t*)i2s_buffer, bytes_read, VOICE_PORT);
-                ESP_LOGD(TAG, "Transmitted %d audio bytes", bytes_read);
+        if (is_bt_audio_connected()) {
+            // Bluetooth headset is connected
+            if (is_transmitting) {
+                // TX LOGIC: Read from BT mic and send to mesh
+                uint8_t bt_mic_buf[512];
+                int bytes_read = bt_audio_read_mic_data(bt_mic_buf, sizeof(bt_mic_buf));
+                if (bytes_read > 0) {
+                    HaLowMeshManager::getInstance().sendUdpMulticast(bt_mic_buf, bytes_read, VOICE_PORT);
+                    ESP_LOGD(TAG, "Transmitted %d audio bytes from BT", bytes_read);
+                }
+            } else {
+                // RX LOGIC: Receive from mesh and play on BT speaker
+                uint8_t rx_buf[MAX_PACKET_SIZE];
+                int len = recv(rx_sock, rx_buf, sizeof(rx_buf), 0);
+                if (len > 0) {
+                    bt_audio_send_data(rx_buf, len);
+                    ESP_LOGD(TAG, "Received and sent %d audio bytes to BT", len);
+                }
             }
         } else {
-            // RX LOGIC
-            uint8_t rx_buf[MAX_PACKET_SIZE];
-            int len = recv(rx_sock, rx_buf, sizeof(rx_buf), 0);
-            if (len > 0) {
-                // In a real implementation, you would decode the opus data here.
-                // For this stub, we just assume the received data is raw PCM and play it.
-                // A real jitter buffer would be needed here.
-                size_t bytes_written;
-                i2s_write(I2S_NUM, rx_buf, len, &bytes_written, portMAX_DELAY);
-                ESP_LOGD(TAG, "Received and played %d audio bytes", bytes_written);
+            // No BT headset, use I2S
+            if (is_transmitting) {
+                // TX LOGIC
+                int16_t i2s_buffer[OPUS_FRAME_SIZE];
+                size_t bytes_read;
+                i2s_read(I2S_NUM, i2s_buffer, sizeof(i2s_buffer), &bytes_read, portMAX_DELAY);
+
+                if (bytes_read > 0) {
+                    // In a real implementation, you would use the opus encoder here.
+                    // For this stub, we will just send the raw data as a placeholder.
+                    HaLowMeshManager::getInstance().sendUdpMulticast((const uint8_t*)i2s_buffer, bytes_read, VOICE_PORT);
+                    ESP_LOGD(TAG, "Transmitted %d audio bytes from I2S", bytes_read);
+                }
+            } else {
+                // RX LOGIC
+                uint8_t rx_buf[MAX_PACKET_SIZE];
+                int len = recv(rx_sock, rx_buf, sizeof(rx_buf), 0);
+                if (len > 0) {
+                    // In a real implementation, you would decode the opus data here.
+                    // For this stub, we just assume the received data is raw PCM and play it.
+                    // A real jitter buffer would be needed here.
+                    size_t bytes_written;
+                    i2s_write(I2S_NUM, rx_buf, len, &bytes_written, portMAX_DELAY);
+                    ESP_LOGD(TAG, "Received and played %d audio bytes on I2S", bytes_written);
+                }
             }
         }
 
