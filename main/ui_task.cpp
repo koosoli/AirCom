@@ -2,6 +2,7 @@
 #include "include/config.h"
 #include "include/button_handler.h"
 #include "include/shared_data.h"
+#include "bt_audio.h"
 #include "esp_log.h"
 
 // U8g2 C-style includes
@@ -17,12 +18,14 @@ typedef enum {
     UI_STATE_CONTACTS,
     UI_STATE_CHAT,
     UI_STATE_MAP,
+    UI_STATE_BLUETOOTH,
     // Add other states like settings, etc.
 } ui_state_t;
 
 static u8g2_t u8g2; // a structure which contains all the data for one display
 static ui_state_t current_ui_state = UI_STATE_MAIN;
 static int selected_contact_index = 0;
+static int selected_bt_menu_index = 0;
 static std::string selected_contact_callsign = "";
 
 // Text entry variables
@@ -54,8 +57,31 @@ static void drawMainScreen() {
     sprintf(buf, "Status: %s", isConnected ? "Online" : "Offline");
     u8g2_DrawStr(&u8g2, 0, 48, buf);
 
-    u8g2_DrawStr(&u8g2, 0, 60, "v Sel| ^ Map| < Status");
+    u8g2_DrawStr(&u8g2, 0, 60, "v Sel| ^ BT| < Status");
 }
+
+static void drawBluetoothScreen() {
+    u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
+    u8g2_DrawStr(&u8g2, 10, 10, "--- Bluetooth ---");
+
+    // Menu item 0: Scan
+    if (selected_bt_menu_index == 0) {
+        u8g2_DrawStr(&u8g2, 0, 22, ">");
+    }
+    u8g2_DrawStr(&u8g2, 10, 22, "Scan for devices");
+
+    // Discovered devices start from menu index 1
+    const auto& devices = bt_audio_get_discovered_devices();
+    for (size_t i = 0; i < devices.size(); ++i) {
+        if (i + 1 == selected_bt_menu_index) {
+            u8g2_DrawStr(&u8g2, 0, 34 + i * 12, ">");
+        }
+        u8g2_DrawStr(&u8g2, 10, 34 + i * 12, devices[i].name);
+    }
+
+    u8g2_DrawStr(&u8g2, 0, 60, "^ Back");
+}
+
 
 static void drawContactsScreen() {
     u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
@@ -214,7 +240,7 @@ void uiTask(void *pvParameters) {
                     current_ui_state = UI_STATE_CONTACTS;
                 }
                 if (is_button_just_pressed(BUTTON_UP)) {
-                    current_ui_state = UI_STATE_MAP;
+                    current_ui_state = UI_STATE_BLUETOOTH;
                 }
                 if (is_button_just_pressed(BUTTON_BACK)) {
                     ESP_LOGI(TAG, "Back button pressed in main screen, toggling connection status.");
@@ -230,6 +256,35 @@ void uiTask(void *pvParameters) {
             case UI_STATE_MAP:
                 if (is_button_just_pressed(BUTTON_BACK)) {
                     current_ui_state = UI_STATE_MAIN;
+                }
+                break;
+            case UI_STATE_BLUETOOTH:
+                if (is_button_just_pressed(BUTTON_BACK)) {
+                    current_ui_state = UI_STATE_MAIN;
+                }
+                if (is_button_just_pressed(BUTTON_UP)) {
+                    if (selected_bt_menu_index > 0) {
+                        selected_bt_menu_index--;
+                    }
+                }
+                if (is_button_just_pressed(BUTTON_DOWN)) {
+                    const auto& devices = bt_audio_get_discovered_devices();
+                    if (selected_bt_menu_index < devices.size()) { // size() is number of devices, +1 for "Scan"
+                        selected_bt_menu_index++;
+                    }
+                }
+                if (is_button_just_pressed(BUTTON_SELECT)) {
+                    if (selected_bt_menu_index == 0) {
+                        // Scan for devices
+                        bt_audio_start_discovery();
+                    } else {
+                        // Connect to selected device
+                        const auto& devices = bt_audio_get_discovered_devices();
+                        int device_index = selected_bt_menu_index - 1;
+                        if (device_index < devices.size()) {
+                            bt_audio_connect(devices[device_index].bda);
+                        }
+                    }
                 }
                 break;
             case UI_STATE_CONTACTS:
@@ -331,6 +386,9 @@ void uiTask(void *pvParameters) {
                     break;
                 case UI_STATE_MAP:
                     drawMapScreen();
+                    break;
+                case UI_STATE_BLUETOOTH:
+                    drawBluetoothScreen();
                     break;
             }
         } while (u8g2_NextPage(&u8g2));
