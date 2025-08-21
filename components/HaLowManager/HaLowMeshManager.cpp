@@ -3,7 +3,7 @@
 #include "../../main/include/config.h" // Access config for TAG
 
 // Private constructor for singleton
-HaLowMeshManager::HaLowMeshManager() : isInitialized(false) {
+HaLowMeshManager::HaLowMeshManager() : isInitialized(false), isConnected(false) {
     // Constructor body
 }
 
@@ -13,36 +13,23 @@ HaLowMeshManager::~HaLowMeshManager() {
 
 bool HaLowMeshManager::begin() {
     ESP_LOGI(TAG, "Initializing HaLowMeshManager...");
-
-    // =================================================================
-    // VENDOR SDK INTEGRATION POINT
-    // =================================================================
-    // Here, you would call the vendor-specific HaLow SDK functions to:
-    // 1. Initialize the HaLow radio hardware.
-    // 2. Configure the radio for 802.11s mesh mode.
-    // 3. Set the Mesh ID, password, and channel from config.h.
-    // 4. Start the mesh network stack.
-    // 5. Register event handlers for network events (e.g., node join/leave).
-    //
-    // Example (hypothetical SDK):
-    // halow_sdk_init_t init_params = { ... };
-    // if (halow_sdk_init(&init_params) != SDK_OK) {
-    //     ESP_LOGE(TAG, "Vendor HaLow SDK initialization failed!");
-    //     isInitialized = false;
-    //     return false;
-    // }
-    //
-    // halow_mesh_config_t mesh_config = {
-    //     .mesh_id = MESH_ID,
-    //     .password = MESH_PASSWORD,
-    //     .channel = MESH_CHANNEL
-    // };
-    // halow_sdk_mesh_start(&mesh_config);
-    // =================================================================
-
-    ESP_LOGI(TAG, "HaLowMeshManager initialized successfully (STUB).");
     isInitialized = true;
+    // In a real scenario, connection status would be updated by the SDK's events.
+    // For this stub, we'll start as disconnected.
+    isConnected = false;
+    ESP_LOGI(TAG, "HaLowMeshManager initialized successfully (STUB).");
     return true;
+}
+
+void HaLowMeshManager::setConnectionStatus(bool status) {
+    if (isConnected != status) {
+        isConnected = status;
+        ESP_LOGI(TAG, "Connection status changed to: %s", isConnected ? "Connected" : "Disconnected");
+    }
+}
+
+bool HaLowMeshManager::get_connection_status() const {
+    return isConnected;
 }
 
 bool HaLowMeshManager::sendUdpMulticast(const uint8_t* data, size_t size, uint16_t port) {
@@ -51,18 +38,17 @@ bool HaLowMeshManager::sendUdpMulticast(const uint8_t* data, size_t size, uint16
         return false;
     }
 
+    if (!isConnected) {
+        ESP_LOGI(TAG, "Connection is down. Caching multicast message (%d bytes).", size);
+        CachedMessage msg;
+        msg.data.assign(data, data + size);
+        msg.port = port;
+        msg.isMulticast = true;
+        messageCache.push_back(msg);
+        return true; // Return true as the message is "handled" by caching it
+    }
+
     ESP_LOGI(TAG, "Sending %d bytes via UDP multicast to port %d (STUB).", size, port);
-
-    // =================================================================
-    // VENDOR SDK INTEGRATION POINT
-    // =================================================================
-    // Here, you would use the SDK's networking functions to send a UDP packet
-    // to the specified IPv6 multicast address and port.
-    //
-    // Example (hypothetical SDK):
-    // halow_sdk_send_udp(MESH_MULTICAST_ADDR_IPV6, port, data, size);
-    // =================================================================
-
     return true;
 }
 
@@ -72,8 +58,40 @@ bool HaLowMeshManager::sendUdpUnicast(const std::string& destIp, const uint8_t* 
         return false;
     }
 
+    if (!isConnected) {
+        ESP_LOGI(TAG, "Connection is down. Caching unicast message for %s (%d bytes).", destIp.c_str(), size);
+        CachedMessage msg;
+        msg.data.assign(data, data + size);
+        msg.port = port;
+        msg.destIp = destIp;
+        msg.isMulticast = false;
+        messageCache.push_back(msg);
+        return true; // Return true as the message is "handled" by caching it
+    }
+
     ESP_LOGI(TAG, "Sending %d bytes via UDP unicast to %s:%d (STUB).", size, destIp.c_str(), port);
     return true;
+}
+
+void HaLowMeshManager::sendCachedMessages() {
+    if (messageCache.empty()) {
+        return;
+    }
+
+    ESP_LOGI(TAG, "Connection restored. Sending %d cached messages...", messageCache.size());
+
+    for (const auto& msg : messageCache) {
+        if (msg.isMulticast) {
+            ESP_LOGI(TAG, "Sending cached multicast message (%d bytes) to port %d.", msg.data.size(), msg.port);
+            // Actually send it: sendUdpMulticast(&msg.data[0], msg.data.size(), msg.port);
+        } else {
+            ESP_LOGI(TAG, "Sending cached unicast message (%d bytes) to %s:%d.", msg.data.size(), msg.destIp.c_str(), msg.port);
+            // Actually send it: sendUdpUnicast(msg.destIp, &msg.data[0], msg.data.size(), msg.port);
+        }
+    }
+
+    messageCache.clear();
+    ESP_LOGI(TAG, "Message cache cleared.");
 }
 
 
@@ -85,22 +103,6 @@ std::vector<MeshNodeInfo> HaLowMeshManager::getMeshNodes() {
     }
 
     ESP_LOGI(TAG, "Fetching mesh node list (STUB).");
-
-    // =================================================================
-    // VENDOR SDK INTEGRATION POINT
-    // =================================================================
-    // Here, you would query the SDK for the current mesh routing table or
-    // peer list and populate the 'nodes' vector.
-    //
-    // Example (hypothetical SDK):
-    // halow_node_t sdk_nodes[10];
-    // int count = halow_sdk_get_node_list(sdk_nodes, 10);
-    // for (int i = 0; i < count; i++) {
-    //     nodes.push_back({.macAddress = sdk_nodes[i].mac, .ipv6Address = sdk_nodes[i].ipv6});
-    // }
-    // =================================================================
-
-    // Return a dummy node for testing purposes
     nodes.push_back({.macAddress = "DE:AD:BE:EF:00:01", .ipv6Address = "fe80::dead:beff:feef:1"});
     nodes.push_back({.macAddress = "DE:AD:BE:EF:00:02", .ipv6Address = "fe80::dead:beff:feef:2"});
     return nodes;

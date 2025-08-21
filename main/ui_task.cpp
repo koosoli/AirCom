@@ -9,6 +9,7 @@
 #include "u8g2_esp32_hal.h"
 #include "AirCom.pb-c.h"
 #include "crypto.h"
+#include "HaLowMeshManager.h"
 
 // Define the different states (screens) of the UI
 typedef enum {
@@ -38,7 +39,7 @@ static std::vector<incoming_message_t> message_history;
 
 // Placeholder drawing functions for each state
 static void drawMainScreen() {
-    char buf[20];
+    char buf[30];
     u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
     u8g2_DrawStr(&u8g2, 0, 12, "Callsign: " CALLSIGN);
 
@@ -48,8 +49,12 @@ static void drawMainScreen() {
     sprintf(buf, "GPS: %s", gps_lock_status ? "Locked" : "No Lock");
     u8g2_DrawStr(&u8g2, 0, 36, buf);
 
-    u8g2_DrawStr(&u8g2, 0, 48, "Status: Online");
-    u8g2_DrawStr(&u8g2, 0, 60, "v Select for Contacts");
+    HaLowMeshManager& meshManager = HaLowMeshManager::getInstance();
+    bool isConnected = meshManager.get_connection_status();
+    sprintf(buf, "Status: %s", isConnected ? "Online" : "Offline");
+    u8g2_DrawStr(&u8g2, 0, 48, buf);
+
+    u8g2_DrawStr(&u8g2, 0, 60, "v Sel| ^ Map| < Status");
 }
 
 static void drawContactsScreen() {
@@ -210,6 +215,16 @@ void uiTask(void *pvParameters) {
                 }
                 if (is_button_just_pressed(BUTTON_UP)) {
                     current_ui_state = UI_STATE_MAP;
+                }
+                if (is_button_just_pressed(BUTTON_BACK)) {
+                    ESP_LOGI(TAG, "Back button pressed in main screen, toggling connection status.");
+                    HaLowMeshManager& meshManager = HaLowMeshManager::getInstance();
+                    bool currentStatus = meshManager.get_connection_status();
+                    meshManager.setConnectionStatus(!currentStatus);
+                    // If we just reconnected, send cached messages
+                    if (!currentStatus) { // it was false, now it's true
+                        meshManager.sendCachedMessages();
+                    }
                 }
                 break;
             case UI_STATE_MAP:
