@@ -6,6 +6,7 @@
 #include "opus.h"
 #include "HaLowMeshManager.h"
 #include "lwip/sockets.h"
+#include <math.h>
 
 // I2S Configuration
 #define I2S_SAMPLE_RATE     (16000)
@@ -45,6 +46,40 @@ static void init_i2s() {
     ESP_ERROR_CHECK(i2s_set_pin(I2S_NUM, &pin_config));
     ESP_LOGI(TAG, "I2S driver installed.");
 }
+
+#define OVER_SOUND_FREQ 440.0f // A4 tone
+#define OVER_SOUND_DUR_MS 100
+#define OVER_SOUND_AMPLITUDE 5000 // Amplitude (out of 32767 for int16_t)
+
+static void play_over_sound() {
+    ESP_LOGI(TAG, "Playing 'over' sound...");
+
+    // Calculate number of samples
+    const int num_samples = (int)((float)I2S_SAMPLE_RATE * (float)OVER_SOUND_DUR_MS / 1000.0f);
+    int16_t* buffer = (int16_t*)malloc(num_samples * sizeof(int16_t));
+    if (!buffer) {
+        ESP_LOGE(TAG, "Failed to allocate buffer for over sound");
+        return;
+    }
+
+    // Generate sine wave
+    for (int i = 0; i < num_samples; i++) {
+        float t = (float)i / (float)I2S_SAMPLE_RATE;
+        buffer[i] = (int16_t)(OVER_SOUND_AMPLITUDE * sin(2.0f * M_PI * OVER_SOUND_FREQ * t));
+    }
+
+    // Write to I2S
+    size_t bytes_written;
+    i2s_write(I2S_NUM, buffer, num_samples * sizeof(int16_t), &bytes_written, portMAX_DELAY);
+
+    // After playing the tone, it's good practice to write some silence
+    // to ensure the buffer clears and prevent any lingering noise.
+    i2s_zero_dma_buffer(I2S_NUM);
+
+    free(buffer);
+    ESP_LOGI(TAG, "'Over' sound finished.");
+}
+
 
 void audioTask(void *pvParameters) {
     ESP_LOGI(TAG, "audioTask started");
@@ -97,6 +132,7 @@ void audioTask(void *pvParameters) {
             } else if (cmd == AUDIO_CMD_STOP_TX) {
                 is_transmitting = false;
                 ESP_LOGI(TAG, "Audio task stopped transmitting.");
+                play_over_sound();
             }
         }
 
