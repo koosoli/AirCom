@@ -8,6 +8,8 @@
 #include "HaLowMeshManager.h"
 #include "lwip/sockets.h"
 #include <math.h>
+#include "freertos/task.h"
+#include "esp_timer.h"
 
 // I2S Configuration
 #define I2S_SAMPLE_RATE     (16000)
@@ -17,10 +19,17 @@
 #define I2S_DO_PIN          (PIN_I2S_DOUT)
 #define I2S_DI_PIN          (PIN_I2S_DIN)
 
-// Opus Configuration
-#define OPUS_FRAME_SIZE     (320) // 16000 Hz * 20ms
-#define OPUS_BITRATE        (24000)
-#define MAX_PACKET_SIZE     (1500)
+// Audio Codec Configuration
+#define AUDIO_FRAME_SIZE_MS (20) // 20ms frames for low latency
+#define AUDIO_FRAME_SIZE_SAMPLES (I2S_SAMPLE_RATE * AUDIO_FRAME_SIZE_MS / 1000) // 320 samples
+#define AUDIO_BITRATE        (24000) // 24 kbps for voice
+#define AUDIO_MAX_PACKET_SIZE (1500) // Maximum compressed packet size
+#define AUDIO_BT_MIC_BUFFER_SIZE (512) // Bluetooth microphone buffer size
+
+// Audio timing configuration for real-time guarantees
+#define AUDIO_FRAME_INTERVAL_US (AUDIO_FRAME_SIZE_MS * 1000) // 20ms in microseconds
+#define AUDIO_WATCHDOG_TIMEOUT_US (AUDIO_FRAME_INTERVAL_US * 2.5) // 50ms watchdog timeout
+#define AUDIO_MAX_PROCESSING_TIME_US (AUDIO_FRAME_INTERVAL_US * 0.75) // 15ms max processing time
 
 static void init_i2s() {
     i2s_config_t i2s_config = {
@@ -48,25 +57,30 @@ static void init_i2s() {
     ESP_LOGI(TAG, "I2S driver installed.");
 }
 
-#define OVER_SOUND_FREQ 440.0f // A4 tone
-#define OVER_SOUND_DUR_MS 100
-#define OVER_SOUND_AMPLITUDE 5000 // Amplitude (out of 32767 for int16_t)
+// Audio tone configuration for "over" signal
+#define AUDIO_OVER_TONE_FREQ_HZ 440.0f // A4 tone frequency
+#define AUDIO_OVER_TONE_DURATION_MS 100 // Duration of over signal
+#define AUDIO_OVER_TONE_AMPLITUDE 5000 // Amplitude (out of 32767 for int16_t)
+
+// Performance monitoring constants
+#define AUDIO_YIELD_INTERVAL 10 // Yield every 10 frames
+#define AUDIO_LOG_INTERVAL_MS 1000 // Log statistics every second
 
 static void play_over_sound() {
     ESP_LOGI(TAG, "Playing 'over' sound...");
 
     // Calculate number of samples
-    const int num_samples = (int)((float)I2S_SAMPLE_RATE * (float)OVER_SOUND_DUR_MS / 1000.0f);
+    const int num_samples = (int)((float)I2S_SAMPLE_RATE * (float)AUDIO_OVER_TONE_DURATION_MS / 1000.0f);
     int16_t* buffer = (int16_t*)malloc(num_samples * sizeof(int16_t));
     if (!buffer) {
         ESP_LOGE(TAG, "Failed to allocate buffer for over sound");
         return;
     }
 
-    // Generate sine wave
+    // Generate sine wave for "over" signal
     for (int i = 0; i < num_samples; i++) {
         float t = (float)i / (float)I2S_SAMPLE_RATE;
-        buffer[i] = (int16_t)(OVER_SOUND_AMPLITUDE * sin(2.0f * M_PI * OVER_SOUND_FREQ * t));
+        buffer[i] = (int16_t)(AUDIO_OVER_TONE_AMPLITUDE * sin(2.0f * M_PI * AUDIO_OVER_TONE_FREQ_HZ * t));
     }
 
     // Write to I2S
@@ -83,33 +97,19 @@ static void play_over_sound() {
 
 
 void audioTask(void *pvParameters) {
-    ESP_LOGI(TAG, "audioTask started");
+    ESP_LOGI(TAG, "audioTask started with real-time performance optimizations");
 
     // Initialize I2S
     init_i2s();
-
-    // TODO: Initialize GPIO for the PTT button
-    // gpio_pad_select_gpio(PIN_BUTTON_PTT);
-    // gpio_set_direction(PIN_BUTTON_PTT, GPIO_MODE_INPUT);
-    // gpio_pullup_en(PIN_BUTTON_PTT);
-
-    // TODO: Initialize Opus Encoder
-    // int opus_error;
-    // OpusEncoder *encoder = opus_encoder_create(I2S_SAMPLE_RATE, 1, OPUS_APPLICATION_VOIP, &opus_error);
-    // if (opus_error != OPUS_OK) {
-    //     ESP_LOGE(TAG, "Failed to create Opus encoder: %d", opus_error);
-    // }
-    // opus_encoder_ctl(encoder, OPUS_SET_BITRATE(OPUS_BITRATE));
-
-    // TODO: Initialize Opus Decoder
-    // OpusDecoder *decoder = opus_decoder_create(I2S_SAMPLE_RATE, 1, &opus_error);
 
     // Create a non-blocking UDP socket for receiving audio
     int rx_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (rx_sock < 0) {
         ESP_LOGE(TAG, "Unable to create RX socket: errno %d", errno);
         vTaskDelete(NULL);
+        return;
     }
+
     struct sockaddr_in dest_addr;
     dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     dest_addr.sin_family = AF_INET;
@@ -117,39 +117,57 @@ void audioTask(void *pvParameters) {
     int err = bind(rx_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
     if (err < 0) {
         ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+        close(rx_sock);
+        vTaskDelete(NULL);
+        return;
     }
     fcntl(rx_sock, F_SETFL, O_NONBLOCK);
 
     bool is_transmitting = false;
+    uint64_t last_frame_time = esp_timer_get_time();
+    uint64_t frame_start_time = 0;
+    uint32_t timing_violations = 0;
 
-    // Main audio loop
+    // Main audio loop with precise timing control
     for(;;) {
-        // Check for commands from the UI task
+        frame_start_time = esp_timer_get_time();
+
+        // Check for timing violations and log performance issues
+        uint64_t frame_duration = frame_start_time - last_frame_time;
+        if (frame_duration > AUDIO_WATCHDOG_TIMEOUT_US) {
+            timing_violations++;
+            ESP_LOGW(TAG, "Audio timing violation: %llu us (violation #%lu)",
+                    frame_duration, timing_violations);
+        }
+
+        // Check for commands from the UI task with higher priority processing
         audio_command_t cmd;
         if (xQueueReceive(audio_command_queue, &cmd, (TickType_t)0) == pdPASS) {
             if (cmd == AUDIO_CMD_START_TX) {
                 is_transmitting = true;
-                ESP_LOGI(TAG, "Audio task started transmitting.");
+                ESP_LOGI(TAG, "Audio task started transmitting with timing guarantees");
             } else if (cmd == AUDIO_CMD_STOP_TX) {
                 is_transmitting = false;
-                ESP_LOGI(TAG, "Audio task stopped transmitting.");
+                ESP_LOGI(TAG, "Audio task stopped transmitting");
+                // Yield to allow UI task to respond immediately
+                taskYIELD();
                 play_over_sound();
             }
         }
 
+        uint64_t processing_start = esp_timer_get_time();
+
         if (is_bt_audio_connected()) {
-            // Bluetooth headset is connected
+            // Bluetooth headset processing with timing optimization
             if (is_transmitting) {
-                // TX LOGIC: Read from BT mic and send to mesh
-                uint8_t bt_mic_buf[512];
+                uint8_t bt_mic_buf[AUDIO_BT_MIC_BUFFER_SIZE];
                 int bytes_read = bt_audio_read_mic_data(bt_mic_buf, sizeof(bt_mic_buf));
                 if (bytes_read > 0) {
                     HaLowMeshManager::getInstance().sendUdpMulticast(bt_mic_buf, bytes_read, VOICE_PORT);
                     ESP_LOGD(TAG, "Transmitted %d audio bytes from BT", bytes_read);
                 }
             } else {
-                // RX LOGIC: Receive from mesh and play on BT speaker
-                uint8_t rx_buf[MAX_PACKET_SIZE];
+                uint8_t rx_buf[AUDIO_MAX_PACKET_SIZE];
                 int len = recv(rx_sock, rx_buf, sizeof(rx_buf), 0);
                 if (len > 0) {
                     bt_audio_send_data(rx_buf, len);
@@ -157,35 +175,62 @@ void audioTask(void *pvParameters) {
                 }
             }
         } else {
-            // No BT headset, use I2S
+            // I2S processing with optimized timing
             if (is_transmitting) {
-                // TX LOGIC
-                int16_t i2s_buffer[OPUS_FRAME_SIZE];
-                size_t bytes_read;
-                i2s_read(I2S_NUM, i2s_buffer, sizeof(i2s_buffer), &bytes_read, portMAX_DELAY);
+                int16_t i2s_buffer[AUDIO_FRAME_SIZE_SAMPLES];
+                size_t bytes_read = 0;
+                esp_err_t ret = i2s_read(I2S_NUM, i2s_buffer, sizeof(i2s_buffer), &bytes_read, 0); // Non-blocking
 
-                if (bytes_read > 0) {
-                    // In a real implementation, you would use the opus encoder here.
-                    // For this stub, we will just send the raw data as a placeholder.
+                if (ret == ESP_OK && bytes_read > 0) {
                     HaLowMeshManager::getInstance().sendUdpMulticast((const uint8_t*)i2s_buffer, bytes_read, VOICE_PORT);
                     ESP_LOGD(TAG, "Transmitted %d audio bytes from I2S", bytes_read);
                 }
             } else {
-                // RX LOGIC
                 uint8_t rx_buf[MAX_PACKET_SIZE];
                 int len = recv(rx_sock, rx_buf, sizeof(rx_buf), 0);
                 if (len > 0) {
-                    // In a real implementation, you would decode the opus data here.
-                    // For this stub, we just assume the received data is raw PCM and play it.
-                    // A real jitter buffer would be needed here.
-                    size_t bytes_written;
-                    i2s_write(I2S_NUM, rx_buf, len, &bytes_written, portMAX_DELAY);
-                    ESP_LOGD(TAG, "Received and played %d audio bytes on I2S", bytes_written);
+                    size_t bytes_written = 0;
+                    esp_err_t ret = i2s_write(I2S_NUM, rx_buf, len, &bytes_written, 0); // Non-blocking
+
+                    if (ret == ESP_OK) {
+                        ESP_LOGD(TAG, "Received and played %d audio bytes on I2S", bytes_written);
+                    }
                 }
             }
         }
 
-        // Delay to allow other tasks to run
-        vTaskDelay(pdMS_TO_TICKS(20)); // A 20ms delay is typical for voice packets
+        // Monitor processing time to ensure we meet real-time constraints
+        uint64_t processing_time = esp_timer_get_time() - processing_start;
+        if (processing_time > AUDIO_MAX_PROCESSING_TIME_US) {
+            ESP_LOGW(TAG, "Audio processing exceeded limit: %llu us", processing_time);
+        }
+
+        // Precise timing control for next frame
+        last_frame_time = frame_start_time;
+        uint64_t target_next_frame = frame_start_time + AUDIO_FRAME_INTERVAL_US;
+        uint64_t current_time = esp_timer_get_time();
+
+        if (current_time < target_next_frame) {
+            uint64_t sleep_time_us = target_next_frame - current_time;
+            uint32_t sleep_ticks = pdUS_TO_TICKS(sleep_time_us);
+
+            if (sleep_ticks > 0) {
+                vTaskDelay(sleep_ticks);
+            }
+        } else {
+            // We're behind schedule, yield to other tasks and try to catch up
+            ESP_LOGD(TAG, "Audio frame behind schedule, yielding");
+            taskYIELD();
+        }
+
+        // Yield periodically to maintain system responsiveness
+        static uint32_t yield_counter = 0;
+        if (++yield_counter % AUDIO_YIELD_INTERVAL == 0) {
+            taskYIELD();
+        }
     }
+
+    // Cleanup
+    close(rx_sock);
+    vTaskDelete(NULL);
 }

@@ -71,5 +71,21 @@ extern SemaphoreHandle_t g_teammate_locations_mutex;
 
 void shared_data_init();
 
+// Queue helper functions with overflow handling
+BaseType_t send_ui_update(const ui_update_t* update);
+BaseType_t send_outgoing_message(const outgoing_message_t* message);
+BaseType_t send_audio_command(const audio_command_t* command);
+BaseType_t send_incoming_message(const incoming_message_t* message);
+
+// Queue status monitoring functions
+UBaseType_t get_ui_update_queue_spaces(void);
+UBaseType_t get_outgoing_message_queue_spaces(void);
+UBaseType_t get_audio_command_queue_spaces(void);
+UBaseType_t get_incoming_message_queue_spaces(void);
+
+UBaseType_t get_ui_update_queue_size(void);
+UBaseType_t get_outgoing_message_queue_size(void);
+UBaseType_t get_audio_command_queue_size(void);
+UBaseType_t get_incoming_message_queue_size(void);
 
 #endif // SHARED_DATA_H

@@ -65,6 +65,41 @@ std::vector<bt_device_t> bt_audio_get_discovered_devices(void);
  */
 void bt_audio_connect(const esp_bd_addr_t bda);
 
+/**
+ * @brief Gets the number of free spaces in the microphone audio queue.
+ * @return Number of free spaces available in the mic queue.
+ */
+UBaseType_t bt_audio_get_mic_queue_spaces(void);
+
+/**
+ * @brief Gets the total size of the microphone audio queue.
+ * @return Total capacity of the mic queue.
+ */
+UBaseType_t bt_audio_get_mic_queue_size(void);
+
+/**
+ * @brief Gets the number of messages waiting in the microphone audio queue.
+ * @return Number of messages currently in the mic queue.
+ */
+UBaseType_t bt_audio_get_mic_queue_messages_waiting(void);
+
+/**
+ * @brief Gets the number of free spaces in the speaker audio queue.
+ * @return Number of free spaces available in the speaker queue.
+ */
+UBaseType_t bt_audio_get_speaker_queue_spaces(void);
+
+/**
+ * @brief Gets the total size of the speaker audio queue.
+ * @return Total capacity of the speaker queue.
+ */
+UBaseType_t bt_audio_get_speaker_queue_size(void);
+
+/**
+ * @brief Gets the number of messages waiting in the speaker audio queue.
+ * @return Number of messages currently in the speaker queue.
+ */
+UBaseType_t bt_audio_get_speaker_queue_messages_waiting(void);
 
 #ifdef __cplusplus
 }

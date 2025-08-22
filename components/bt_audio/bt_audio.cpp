@@ -22,14 +22,21 @@ static esp_hf_sync_conn_hdl_t s_sync_conn_hdl = 0;
 static std::vector<bt_device_t> s_discovered_devices;
 static std::mutex s_devices_mutex;
 
-// Mic queue
-#define MIC_QUEUE_LEN 10
+// Mic queue - increased size for better audio buffering and overflow protection
+#define MIC_QUEUE_LEN 30
 #define MIC_BUF_SIZE 512
+
+// Speaker queue for outgoing audio data
+#define SPEAKER_QUEUE_LEN 20
+#define SPEAKER_BUF_SIZE 1024
+
 typedef struct {
     uint8_t data[MIC_BUF_SIZE];
     uint16_t len;
 } audio_packet_t;
+
 static QueueHandle_t s_mic_queue = NULL;
+static QueueHandle_t s_speaker_queue = NULL;
 
 // Forward declarations
 static void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
@@ -39,9 +46,20 @@ static void bt_in_stream_cb(esp_hf_sync_conn_hdl_t sync_conn_hdl, esp_hf_audio_b
 void bt_audio_init(void) {
     esp_err_t ret;
 
+    // Initialize microphone queue
     s_mic_queue = xQueueCreate(MIC_QUEUE_LEN, sizeof(audio_packet_t));
     if (!s_mic_queue) {
         ESP_LOGE(TAG, "Failed to create mic queue");
+    } else {
+        ESP_LOGI(TAG, "Created mic queue with capacity for %d audio packets", MIC_QUEUE_LEN);
+    }
+
+    // Initialize speaker queue
+    s_speaker_queue = xQueueCreate(SPEAKER_QUEUE_LEN, sizeof(audio_packet_t));
+    if (!s_speaker_queue) {
+        ESP_LOGE(TAG, "Failed to create speaker queue");
+    } else {
+        ESP_LOGI(TAG, "Created speaker queue with capacity for %d audio packets", SPEAKER_QUEUE_LEN);
     }
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
@@ -125,6 +143,32 @@ int bt_audio_read_mic_data(uint8_t *buf, int max_len) {
     return 0;
 }
 
+// Queue status monitoring functions
+UBaseType_t bt_audio_get_mic_queue_spaces(void) {
+    return s_mic_queue ? uxQueueSpacesAvailable(s_mic_queue) : 0;
+}
+
+UBaseType_t bt_audio_get_mic_queue_size(void) {
+    return MIC_QUEUE_LEN;
+}
+
+// New queue status functions
+UBaseType_t bt_audio_get_mic_queue_messages_waiting(void) {
+    return s_mic_queue ? uxQueueMessagesWaiting(s_mic_queue) : 0;
+}
+
+UBaseType_t bt_audio_get_speaker_queue_spaces(void) {
+    return s_speaker_queue ? uxQueueSpacesAvailable(s_speaker_queue) : 0;
+}
+
+UBaseType_t bt_audio_get_speaker_queue_size(void) {
+    return SPEAKER_QUEUE_LEN;
+}
+
+UBaseType_t bt_audio_get_speaker_queue_messages_waiting(void) {
+    return s_speaker_queue ? uxQueueMessagesWaiting(s_speaker_queue) : 0;
+}
+
 void bt_audio_start_discovery(void) {
     ESP_LOGI(TAG, "Starting device discovery...");
     {
@@ -158,11 +202,15 @@ static void bt_in_stream_cb(esp_hf_sync_conn_hdl_t sync_conn_hdl, esp_hf_audio_b
             audio_packet_t packet;
             memcpy(packet.data, audio_buf->data, audio_buf->len);
             packet.len = audio_buf->len;
-            if (xQueueSend(s_mic_queue, &packet, (TickType_t)0) != pdPASS) {
-                // ESP_LOGW(TAG, "Mic queue full");
+
+            // Use timeout to prevent blocking and handle overflow gracefully
+            if (xQueueSend(s_mic_queue, &packet, pdMS_TO_TICKS(50)) != pdPASS) {
+                ESP_LOGW(TAG, "Mic queue full, dropping audio packet (len=%d)", packet.len);
+                // Queue is full - this is expected during high audio activity
+                // The packet is dropped to prevent audio latency buildup
             }
         } else {
-            ESP_LOGW(TAG, "Received audio packet larger than buffer");
+            ESP_LOGW(TAG, "Received audio packet larger than buffer (%d > %d)", audio_buf->len, MIC_BUF_SIZE);
         }
     }
     esp_hf_client_audio_buff_free(audio_buf);

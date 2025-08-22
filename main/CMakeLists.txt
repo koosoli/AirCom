@@ -1,16 +1,56 @@
-# CMakeLists.txt for the main application component
+# AirCom Main Application CMakeLists.txt
 
-# The component is a library
-idf_component_register(SRCS "main.cpp" "gps_task.cpp" "atak_task.cpp" "ui_task.cpp" "audio_task.cpp" "button_handler.cpp" "shared_data.cpp" "crypto.cpp"
-                    INCLUDE_DIRS "include"
-                    REQUIRES TinyGPSxx HaLowManager u8g2_esp32_hal Opus protobuf-c)
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "ui_task.cpp"
+        "audio_task.cpp"
+        "network_task.cpp"
+        "gps_task.cpp"
+        "crypto.cpp"
+        "button_handler.cpp"
+        "shared_data.cpp"
+        "safe_callback.cpp"
+        "memory_tracker.cpp"
+        "config_manager.cpp"
+        "logging_system.cpp"
+        "gui_tester.cpp"
+        "gui_preview.cpp"
+        "error_handling.c"
+        "network_utils.c"
+        "xiao_integration_test.cpp"
+        "atak_processor_task.cpp"
+        "atak_task.cpp"
 
-# Find all .proto files in the 'proto' subdirectory
-file(GLOB PROTO_FILES "${CMAKE_CURRENT_LIST_DIR}/proto/*.proto")
+    INCLUDE_DIRS
+        "include"
+        "../components"
 
-# Add a command to compile the .proto files to C source/header files
-# This will generate AirCom.pb-c.h and AirCom.pb-c.c in the build directory
-idf_proto_compile_c(${PROTO_FILES} PROTO_SRCS PROTO_HDRS)
+    REQUIRES
+        bt_audio
+        MM-IoT-SDK
+        Heltec-HaLow
+        HaLowManager
+        libsodium
+        Opus
+        TinyGPSxx
+        u8g2
+        u8g2_esp32_hal
+)
 
-# Add the generated source files to the component's source list
-list(APPEND SRCS ${PROTO_SRCS})
+# Add GUI Preview as standalone executable (for testing)
+if(GUI_PREVIEW_STANDALONE)
+    add_executable(gui_preview_standalone
+        "gui_preview.cpp"
+    )
+
+    target_include_directories(gui_preview_standalone PRIVATE
+        "include"
+    )
+
+    # Link standard C++ libraries
+    target_link_libraries(gui_preview_standalone
+        stdc++
+        pthread
+    )
+endif()

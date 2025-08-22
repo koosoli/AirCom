@@ -1,0 +1,195 @@
+# Build outputs and artifacts
+.pio/
+build/
+cmake-build-*/
+out/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+
+# ESP-IDF specific
+sdkconfig
+sdkconfig.old
+components/
+managed_components/
+build/
+dist/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+.pio/build/
+.pio/libdeps/
+platformio.ini.bak
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# CLion / IntelliJ
+.idea/
+cmake-build-*/
+*.iws
+*.iml
+*.ipr
+
+# Eclipse
+.project
+.cproject
+.autotools
+.factorypath
+.buildpath
+.target
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Documentation builds
+docs/_build/
+docs/build/
+docs/generated/
+
+# Local configuration
+config.local.*
+*.local
+.env
+.env.local
+.env.production
+.env.test
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Certificate files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Wi-Fi credentials and sensitive data
+wifi_config.h
+secrets.h
+config.h
+*credentials*
+*secret*
+
+# Test outputs
+test_results/
+test_output/
+*.xml
+*.html
+
+# Debug files
+*.dSYM/
+debug/
+*.debug
+
+# Archive files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# ESP32 specific
+components/
+!components/**/CMakeLists.txt
+!components/**/*.h
+!components/**/*.hpp
+!components/**/*.c
+!components/**/*.cpp
+!components/**/*.md
+!components/**/*.txt
+
+# Partition tables and configurations
+partitions_*.csv
+sdkconfig*
+bootloader.bin
+partitions.bin
+app.bin
+firmware.bin
+
+# OTA files
+ota_data_initial.bin

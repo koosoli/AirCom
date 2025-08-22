@@ -4,6 +4,16 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include <memory>
+
+// Forward declaration for MM-IoT-SDK
+class MMIoTSDK;
+
+// Forward declaration for safe callback system
+class CallbackOwner;
+class ConnectionCallback;
+class DataCallback;
+class DiscoveryCallback;
 
 // Forward declaration for a potential node info structure
 struct MeshNodeInfo {
@@ -19,7 +29,6 @@ struct CachedMessage {
     std::string destIp; // Empty for multicast
     bool isMulticast;
 };
-
 
 class HaLowMeshManager {
 public:
@@ -52,6 +61,17 @@ public:
     // Send any messages that were cached while offline
     void sendCachedMessages();
 
+    // Start network discovery
+    bool startDiscovery();
+
+    // Stop network discovery
+    void stopDiscovery();
+
+    // Connect to a specific peer
+    bool connectToPeer(const std::string& peer_id);
+
+    // Disconnect from a specific peer
+    bool disconnectFromPeer(const std::string& peer_id);
 
 private:
     // Private constructor for singleton
@@ -65,6 +85,20 @@ private:
 
     // Cache for messages to be sent when connection is restored
     std::vector<CachedMessage> messageCache;
+
+    // MM-IoT-SDK instance
+    MMIoTSDK* m_mmSDK;
+
+    // Safe callback system
+    CallbackOwner m_callbackOwner;
+    std::shared_ptr<ConnectionCallback> m_connectionCallback;
+    std::shared_ptr<DataCallback> m_dataCallback;
+    std::shared_ptr<DiscoveryCallback> m_discoveryCallback;
+
+    // Callback handlers for MM-IoT-SDK events
+    void handleConnectionEvent(const std::string& peer_id, bool connected);
+    void handleDataEvent(const std::string& peer_id, const std::vector<uint8_t>& data);
+    void handleDiscoveryEvent(const std::vector<std::string>& peer_list);
 };
 
 #endif // HALOW_MESH_MANAGER_H
