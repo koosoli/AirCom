@@ -303,9 +303,9 @@ This project contains a mix of original code and integrated libraries. Review in
 
 **USE THIS CODE AT YOUR OWN RISK. IT IS PROVIDED AS-IS WITHOUT ANY GUARANTEES OF FUNCTIONALITY, SAFETY, OR SUITABILITY FOR ANY PURPOSE.**
 
-The architectural improvements represent significant enhancements in code quality, safety, and maintainability. However, the code remains untested and should not be used in any critical applications without comprehensive testing and validation.
+
 
 ---
 
-*Last updated: 2024*
+
 *Status: UNTESTED PROOF-OF-CONCEPT*
