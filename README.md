@@ -8,7 +8,7 @@ This repository contains the complete PlatformIO firmware for "Project AirCom," 
 
 ## 🎯 **Project Goal**
 
-The device is a standalone, all-in-one solution that functions as a mesh-networked walkie-talkie, text messenger, and an ATAK-compatible location beacon, requiring no connection to a mobile phone. It is designed for off-grid communication in scenarios where cellular service is unavailable, such as disaster response, wilderness expeditions, or tactical operations. As a robust, low-power, long-range communication tool, it provides a critical lifeline for teams operating in remote environments, with a key focus on providing high-quality voice communications.
+The device is a standalone, all-in-one solution that creates a **MANET (Mobile Ad-hoc Network)**, functioning as a mesh-networked walkie-talkie, text messenger, and an ATAK-compatible location beacon that requires no connection to a mobile phone. It is designed for off-grid communication in scenarios where cellular service is unavailable, such as disaster response, wilderness expeditions, or tactical operations. As a robust, low-power, long-range communication tool, it provides a critical lifeline for teams operating in remote environments, with a key focus on providing high-quality voice communications.
 
 ## 📋 **Current Status: Conceptual Prototype**
 
