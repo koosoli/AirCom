@@ -48,6 +48,22 @@ public:
      */
     void setGroupKey(const std::vector<uint8_t>& new_key);
 
+    /**
+     * @brief Initiates a key share with a target node.
+     * @param target_node_id The ID of the node to share the key with.
+     * @param temp_key A pre-shared temporary key for this specific exchange.
+     * @return True if the key share message was successfully created and queued for sending.
+     */
+    bool initiateGroupKeyShare(const std::string& target_node_id, const std::vector<uint8_t>& temp_key);
+
+    /**
+     * @brief Processes an incoming key share packet.
+     * @param encrypted_packet The encrypted packet containing the GroupKeyShare message.
+     * @param temp_key The pre-shared temporary key to decrypt this specific message.
+     * @return True if the key was successfully decrypted and updated.
+     */
+    bool processGroupKeyShare(const EncryptedPacket& encrypted_packet, const std::vector<uint8_t>& temp_key);
+
 private:
     // Private constructor for singleton
     SecurityManager();
