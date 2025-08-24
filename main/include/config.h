@@ -1,11 +1,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "../../components/HaLowManager/include/HaLowMeshManager.h"
+
 // =================================================================
 // General Device Configuration
 // =================================================================
 #define CALLSIGN "AIRCOM-IDF"
 #define TAG "AIRCOM" // Logging tag for ESP_LOG
+#define DEFAULT_POWER_ROLE PowerRole::ROUTER // Default power role (ROUTER or SLEEPY_END_DEVICE)
 
 // =================================================================
 // Network Configuration

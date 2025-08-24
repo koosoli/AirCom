@@ -89,3 +89,44 @@ bool SecurityManager::decrypt(const EncryptedPacket& encrypted_packet, std::vect
     ESP_LOGW(TAG, "Decryption is a placeholder and NOT secure!");
     return true;
 }
+
+bool SecurityManager::initiateGroupKeyShare(const std::string& target_node_id, const std::vector<uint8_t>& temp_key) {
+    if (!isInitialized) {
+        ESP_LOGE(TAG, "Security Manager not initialized.");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Initiating group key share with node %s", target_node_id.c_str());
+
+    // TODO:
+    // 1. Create a GroupKeyShare protobuf message and populate it with the current groupKey.
+    // 2. Serialize this protobuf message to a byte vector (plaintext).
+    // 3. Encrypt this plaintext using the provided `temp_key`. This will produce an EncryptedPacket.
+    // 4. Create a new AirComPacket.
+    // 5. Set the payload of the AirComPacket to be the EncryptedPacket from the previous step.
+    // 6. Set the `to_node` field to `target_node_id`.
+    // 7. Serialize the final AirComPacket.
+    // 8. Queue the final packet for sending via the network task's queue.
+
+    ESP_LOGW(TAG, "Key share initiation is a placeholder!");
+    return true;
+}
+
+bool SecurityManager::processGroupKeyShare(const EncryptedPacket& encrypted_packet, const std::vector<uint8_t>& temp_key) {
+    if (!isInitialized) {
+        ESP_LOGE(TAG, "Security Manager not initialized.");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Processing incoming group key share packet.");
+
+    // TODO:
+    // 1. Decrypt the `encrypted_packet` using the provided `temp_key`. This will yield a plaintext byte vector.
+    // 2. Deserialize the plaintext into a GroupKeyShare protobuf message.
+    // 3. Extract the new group key from the message.
+    // 4. Call `setGroupKey()` to update the group key for this session.
+    // 5. Securely erase the temporary key and the plaintext key data from memory.
+
+    ESP_LOGW(TAG, "Key share processing is a placeholder!");
+    return true;
+}
