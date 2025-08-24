@@ -27,6 +27,7 @@ idf_component_register(
         "xiao_integration_test.cpp"
         "atak_processor_task.cpp"
         "atak_task.cpp"
+        "network_health_task.cpp"
 
     INCLUDE_DIRS
         "include"
