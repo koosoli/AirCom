@@ -8,39 +8,16 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
-#include <map>
-
-// C++ equivalent of the ServiceType enum in the .proto file.
-// This allows other components to use the type without a direct protobuf dependency.
-enum class ServiceType {
-    UNSPECIFIED = 0,
-    ATAK_GATEWAY = 1,
-    INTERNET_GATEWAY = 2,
-    AUDIO_REPEATER = 3,
-};
 
 // Structure to hold info about a discovered teammate
 struct MeshNodeInfo {
-    std::string callsign;
-    std::string node_id; // Using node_id as the primary key
+    std::string callsign; // Will be extracted from discovery JSON
     std::string ipAddress;
-    std::vector<ServiceType> services;
-};
-
-// Structure to hold link quality and statistics for a peer node
-struct PeerLinkStats {
-    int32_t rssi; // As seen by our node
-    int32_t snr; // As seen by our node
-    int32_t remote_rssi; // As reported by the peer
-    int32_t remote_snr; // As reported by the peer
-    uint32_t last_latency_ms; // Round-trip time of last health check
-    uint32_t last_update_time; // Timestamp of the last health update
 };
 
 // Structure to hold tactical info about a teammate
 struct TeammateInfo {
     std::string callsign;
-    std::string node_id;
     double lat;
     double lon;
     uint32_t last_update_time;
@@ -56,13 +33,9 @@ typedef struct {
 // A queue to send status updates from other tasks to the UI task
 extern QueueHandle_t ui_update_queue;
 
-// A shared map to hold the list of contacts, keyed by node_id, protected by a mutex
-extern std::map<std::string, MeshNodeInfo> g_contact_list;
+// A shared vector to hold the list of contacts, protected by a mutex
+extern std::vector<MeshNodeInfo> g_contact_list;
 extern SemaphoreHandle_t g_contact_list_mutex;
-
-// A shared map to hold the link statistics for each peer, keyed by node_id
-extern std::map<std::string, PeerLinkStats> g_peer_link_stats;
-extern SemaphoreHandle_t g_peer_link_stats_mutex;
 
 // A structure to hold an outgoing text message
 typedef struct {

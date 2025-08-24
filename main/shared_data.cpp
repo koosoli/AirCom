@@ -6,10 +6,8 @@ QueueHandle_t ui_update_queue;
 QueueHandle_t outgoing_message_queue;
 QueueHandle_t audio_command_queue;
 QueueHandle_t incoming_message_queue;
-std::map<std::string, MeshNodeInfo> g_contact_list;
+std::vector<MeshNodeInfo> g_contact_list;
 SemaphoreHandle_t g_contact_list_mutex;
-std::map<std::string, PeerLinkStats> g_peer_link_stats;
-SemaphoreHandle_t g_peer_link_stats_mutex;
 std::vector<TeammateInfo> g_teammate_locations;
 SemaphoreHandle_t g_teammate_locations_mutex;
 
@@ -58,9 +56,6 @@ void shared_data_init() {
 
     // Create a mutex for guarding access to the contact list.
     g_contact_list_mutex = xSemaphoreCreateMutex();
-
-    // Create a mutex for guarding access to the peer link stats map.
-    g_peer_link_stats_mutex = xSemaphoreCreateMutex();
 
     // Create a mutex for guarding access to the teammate locations list.
     g_teammate_locations_mutex = xSemaphoreCreateMutex();
