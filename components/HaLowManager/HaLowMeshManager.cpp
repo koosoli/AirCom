@@ -9,8 +9,7 @@ HaLowMeshManager::HaLowMeshManager()
     : isInitialized(false)
     , isConnected(false)
     , m_mmSDK(nullptr)
-    , m_callbackOwner("HaLowMeshManager")
-    , currentPowerRole(PowerRole::ROUTER) { // Default to ROUTER for max reliability
+    , m_callbackOwner("HaLowMeshManager") {
     // Constructor body
 }
 
@@ -269,39 +268,5 @@ void HaLowMeshManager::handleDiscoveryEvent(const std::vector<std::string>& peer
     // Discovery event handling - could update peer lists, etc.
     for (const auto& peer : peer_list) {
         ESP_LOGD(TAG, "Discovered peer: %s", peer.c_str());
-    }
-}
-
-void HaLowMeshManager::setPowerRole(PowerRole newRole) {
-    if (currentPowerRole != newRole) {
-        ESP_LOGI(TAG, "Setting power role to %s", (newRole == PowerRole::ROUTER) ? "ROUTER" : "SLEEPY_END_DEVICE");
-        currentPowerRole = newRole;
-        applyPowerRole();
-    }
-}
-
-void HaLowMeshManager::applyPowerRole() {
-    if (!isInitialized || !m_mmSDK) {
-        ESP_LOGW(TAG, "Cannot apply power role, manager not initialized.");
-        return;
-    }
-
-    ESP_LOGI(TAG, "Applying power role: %s", (currentPowerRole == PowerRole::ROUTER) ? "ROUTER" : "SLEEPY_END_DEVICE");
-
-    // This is where the vendor-specific SDK calls would go.
-    switch (currentPowerRole) {
-        case PowerRole::ROUTER:
-            // TODO: Call the vendor SDK function to disable power save modes.
-            // This ensures the device is always awake to route packets for others.
-            // Example: m_mmSDK->setPowerSaveMode(PS_MODE_NONE);
-            ESP_LOGI(TAG, "Placeholder: Disabling power save features for ROUTER role.");
-            break;
-        case PowerRole::SLEEPY_END_DEVICE:
-            // TODO: Call the vendor SDK function to enable a power save mode.
-            // This could be a standard 802.11 power save, or a deeper sleep mode.
-            // The specifics depend heavily on the SDK's capabilities.
-            // Example: m_mmSDK->setPowerSaveMode(PS_MODE_DEEP_SLEEP, 1000); // 1000ms listen interval
-            ESP_LOGI(TAG, "Placeholder: Enabling power save features for SLEEPY_END_DEVICE role.");
-            break;
     }
 }

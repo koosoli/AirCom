@@ -41,19 +41,6 @@
 #include "include/error_handling.h"
 #include "include/network_task.h"
 #include "include/atak_processor_task.h"
-#include "sdkconfig.h" // For Kconfig options
-#if CONFIG_AIRCOM_FEATURE_NETWORK_HEALTH
-#include "include/network_health_task.h"
-#endif
-#if CONFIG_AIRCOM_FEATURE_SECURITY
-#include "include/SecurityManager.h"
-#endif
-#if CONFIG_AIRCOM_FEATURE_OTA_UPDATES
-#include "ota_updater.h"
-#endif
-#if CONFIG_AIRCOM_FEATURE_CAMERA
-#include "camera_service.h"
-#endif
 #include "HaLowMeshManager.h"
 #include "AirCom.pb-c.h"
 #include "crypto.h"
@@ -76,9 +63,6 @@ static TaskHandle_t atakProcessorTaskHandle = NULL;
 static TaskHandle_t uiTaskHandle = NULL;
 static TaskHandle_t audioTaskHandle = NULL;
 static TaskHandle_t gpsTaskHandle = NULL;
-#if CONFIG_AIRCOM_FEATURE_NETWORK_HEALTH
-static TaskHandle_t networkHealthTaskHandle = NULL;
-#endif
 
 
 
@@ -113,32 +97,6 @@ void app_main(void)
 
     // Initialize Bluetooth audio
     bt_audio_init();
-
-    // Initialize the Security Manager
-#if CONFIG_AIRCOM_FEATURE_SECURITY
-    if (!SecurityManager::getInstance().begin()) {
-        ESP_LOGE(TAG, "Failed to initialize Security Manager. Halting.");
-        return; // Critical failure
-    }
-#endif
-
-#if CONFIG_AIRCOM_FEATURE_OTA_UPDATES
-    // Initialize and start the OTA Updater Service
-    if (ota_updater_init()) {
-        ota_updater_start();
-    } else {
-        ESP_LOGE(TAG, "Failed to initialize OTA Updater Service.");
-    }
-#endif
-
-#if CONFIG_AIRCOM_FEATURE_CAMERA
-    // Initialize and start the Camera Service
-    if (camera_service_init()) {
-        camera_service_start();
-    } else {
-        ESP_LOGE(TAG, "Failed to initialize Camera Service.");
-    }
-#endif
 
     // Create FreeRTOS tasks
     ESP_LOGI(TAG, "Creating tasks...");
@@ -175,14 +133,6 @@ void app_main(void)
         error_report(ERROR_CATEGORY_SYSTEM, ERROR_TASK_CREATION,
                     "Failed to create GPS task", __FILE__, __LINE__, __func__, NULL, 0);
     }
-
-#if CONFIG_AIRCOM_FEATURE_NETWORK_HEALTH
-    result = xTaskCreatePinnedToCore(network_health_task, "NetHealth", STACK_SIZE_DEFAULT, NULL, 2, &networkHealthTaskHandle, 0);
-    if (result != pdPASS) {
-        error_report(ERROR_CATEGORY_SYSTEM, ERROR_TASK_CREATION,
-                    "Failed to create Network Health task", __FILE__, __LINE__, __func__, NULL, 0);
-    }
-#endif
 
     // Core 1: Critical real-time tasks (UI and Audio with balanced priorities)
     result = xTaskCreatePinnedToCore(uiTask, "UI", STACK_SIZE_DEFAULT, NULL, 8, &uiTaskHandle, 1); // Higher priority for UI responsiveness

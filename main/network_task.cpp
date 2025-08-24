@@ -20,11 +20,6 @@
 #include "include/network_utils.h"
 #include "include/error_handling.h"
 #include "include/crypto.h"
-#include "sdkconfig.h" // For Kconfig options
-#if CONFIG_AIRCOM_FEATURE_SECURITY
-#include "include/SecurityManager.h"
-#endif
-
 
 // Define mutex timeout constants locally (should be in shared_data.h)
 #define MUTEX_TIMEOUT_DEFAULT pdMS_TO_TICKS(500)
@@ -32,67 +27,6 @@
 #include "AirCom.pb-c.h"
 
 static const char* TAG = "NETWORK_TASK";
-
-// ============================================================================
-// INCOMING PACKET HANDLER
-// ============================================================================
-
-/**
- * @brief Processes any incoming AirCom packet.
- * @param data Raw byte buffer of the packet.
- * @param len Length of the buffer.
- */
-static void handle_incoming_packet(const uint8_t* data, size_t len) {
-    AirComPacket *packet = air_com_packet__unpack(NULL, len, data);
-    if (!packet) {
-        ESP_LOGE(TAG, "Failed to unpack incoming protobuf packet");
-        return;
-    }
-
-    ESP_LOGI(TAG, "Processing packet from %s", packet->from_node);
-
-    switch (packet->payload_variant_case) {
-        case AIR_COM_PACKET__PAYLOAD_VARIANT_NODE_INFO:
-            // TODO: Update contact list based on NodeInfo
-            break;
-
-#if CONFIG_AIRCOM_FEATURE_SECURITY
-        case AIR_COM_PACKET__PAYLOAD_VARIANT_ENCRYPTED_PACKET:
-        {
-            ESP_LOGI(TAG, "Received an encrypted packet.");
-            std::vector<uint8_t> plaintext;
-            // For now, we assume a hardcoded temporary key for key share packets.
-            // A real implementation would need a more robust way to manage temp keys.
-            std::vector<uint8_t> temp_key(32, 'A');
-
-            // First, try to decrypt it as a key share packet.
-            if (SecurityManager::getInstance().processGroupKeyShare(*packet->encrypted_packet, temp_key)) {
-                ESP_LOGI(TAG, "Successfully processed group key share.");
-            } else {
-                // If not a key share, try to decrypt as a normal message.
-                if (SecurityManager::getInstance().decrypt(*packet->encrypted_packet, plaintext)) {
-                    // TODO: Once decrypted, the plaintext is another AirComPacket.
-                    // We would need to deserialize it and handle its content (e.g., TextMessage).
-                    ESP_LOGI(TAG, "Successfully decrypted application packet.");
-                } else {
-                    ESP_LOGW(TAG, "Failed to decrypt packet from %s. Discarding.", packet->from_node);
-                }
-            }
-            break;
-        }
-#endif
-
-        // Note: TextMessage and cot_message are now inside EncryptedPacket,
-        // so they are not handled here directly anymore.
-
-        default:
-            ESP_LOGW(TAG, "Received unhandled packet type: %d", packet->payload_variant_case);
-            break;
-    }
-
-    air_com_packet__free_unpacked(packet, NULL);
-}
-
 
 // ============================================================================
 // NETWORK TASK IMPLEMENTATION
@@ -273,10 +207,30 @@ void tcp_server_task(void *pvParameters) {
         if (len < 0) {
             ESP_LOGE(TAG, "recv failed: errno %d", errno);
             log_message(LOG_LEVEL_ERROR, "TCP receive failed");
-        } else if (received_data.size() > 0) {
+        } else {
             ESP_LOGI(TAG, "Received %d bytes", received_data.size());
-            // Pass the raw buffer to the centralized handler
-            handle_incoming_packet(received_data.data(), received_data.size());
+
+            // Decrypt and unpack the message
+            std::string decrypted_payload = decrypt_message(received_data);
+            if (!decrypted_payload.empty()) {
+                AirComPacket *packet = air_com_packet__unpack(NULL, decrypted_payload.size(), (const uint8_t*)decrypted_payload.c_str());
+                if (packet) {
+                    if (packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_TEXT_MESSAGE) {
+                        ESP_LOGI(TAG, "Received Text Message: '%s'", packet->text_message->text);
+                        incoming_message_t received_msg;
+                        received_msg.sender_callsign = packet->from_node;
+                        received_msg.message_text = packet->text_message->text;
+                        xQueueSend(incoming_message_queue, &received_msg, (TickType_t)0);
+                    }
+                    air_com_packet__free_unpacked(packet, NULL);
+                } else {
+                    ESP_LOGE(TAG, "Failed to unpack protobuf packet");
+                    log_message(LOG_LEVEL_ERROR, "Failed to unpack protobuf packet");
+                }
+            } else {
+                ESP_LOGE(TAG, "Failed to decrypt message or empty payload");
+                log_message(LOG_LEVEL_ERROR, "Failed to decrypt message or empty payload");
+            }
         }
 
         // Ensure socket is always closed
