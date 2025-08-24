@@ -6,6 +6,12 @@
 #include <string>
 #include <memory>
 
+// Enum to define the power management roles for a node
+enum class PowerRole {
+    ROUTER,          // Always on, routes traffic for other nodes.
+    SLEEPY_END_DEVICE // Can enter low-power sleep modes.
+};
+
 // Forward declaration for MM-IoT-SDK
 class MMIoTSDK;
 
@@ -73,6 +79,9 @@ public:
     // Disconnect from a specific peer
     bool disconnectFromPeer(const std::string& peer_id);
 
+    // Set the power management role for this device
+    void setPowerRole(PowerRole newRole);
+
 private:
     // Private constructor for singleton
     HaLowMeshManager();
@@ -99,6 +108,12 @@ private:
     void handleConnectionEvent(const std::string& peer_id, bool connected);
     void handleDataEvent(const std::string& peer_id, const std::vector<uint8_t>& data);
     void handleDiscoveryEvent(const std::vector<std::string>& peer_list);
+
+    // Apply the current power role settings to the hardware
+    void applyPowerRole();
+
+    // The current power management role of the device
+    PowerRole currentPowerRole;
 };
 
 #endif // HALOW_MESH_MANAGER_H

@@ -1,5 +1,9 @@
 # AirCom Main Application CMakeLists.txt
 
+# Add the PlatformIO library dependency directory to the ESP-IDF component search path.
+# This allows ESP-IDF to find components downloaded via PlatformIO's `lib_deps`.
+set(EXTRA_COMPONENT_DIRS $ENV{PIO_LIBDEPS_DIR})
+
 idf_component_register(
     SRCS
         "main.cpp"
@@ -28,8 +32,6 @@ idf_component_register(
 
     REQUIRES
         bt_audio
-        MM-IoT-SDK
-        Heltec-HaLow
         HaLowManager
         libsodium
         Opus

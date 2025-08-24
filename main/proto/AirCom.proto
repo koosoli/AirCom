@@ -6,10 +6,24 @@ message TextMessage {
   string text = 1;      // The UTF8 encoded text payload
 }
 
+// Enum defining the types of services a node can provide.
+enum ServiceType {
+  // The service is not specified.
+  SERVICE_TYPE_UNSPECIFIED = 0;
+  // This node provides a gateway to the ATAK network.
+  ATAK_GATEWAY = 1;
+  // This node provides a gateway to the public internet.
+  INTERNET_GATEWAY = 2;
+  // This node acts as a high-power audio repeater.
+  AUDIO_REPEATER = 3;
+}
+
 // Information about a node on the mesh. Sent periodically for discovery.
 message NodeInfo {
   string callsign = 1;  // User's chosen callsign
   string node_id = 2;   // Unique node ID (e.g., MAC address)
+  // A list of services this node provides to the mesh.
+  repeated ServiceType services = 3;
 }
 
 // A wrapper message for all packets sent over the mesh.
@@ -26,9 +40,51 @@ message AirComPacket {
 
   // The specific payload of this packet
   oneof payload_variant {
-    TextMessage text_message = 4;
-    NodeInfo node_info = 5;
-    // A Cursor-on-Target XML message, used for ATAK integration
-    string cot_message = 6;
+    // Unencrypted, public messages
+    NodeInfo node_info = 4;
+    HealthCheckRequest health_request = 5;
+    HealthCheckResponse health_response = 6;
+
+    // Encrypted application-level messages
+    EncryptedPacket encrypted_packet = 7;
   }
+}
+
+// A wrapper for an encrypted payload.
+// This uses a standard authenticated encryption with associated data (AEAD) construction.
+message EncryptedPacket {
+  // The nonce (number used once) for the encryption cipher. Essential for security.
+  bytes nonce = 1;
+  // The encrypted payload itself.
+  bytes ciphertext = 2;
+}
+
+// A message to securely share the group key with a new node.
+// This packet itself would be encrypted using a pre-shared, temporary key.
+message GroupKeyShare {
+  // The main encryption key for group communication.
+  bytes group_key = 1;
+}
+
+// A message containing health metrics about a specific link.
+message HealthMetrics {
+  // Received Signal Strength Indicator for the last packet received from a peer.
+  int32 rssi = 1;
+  // Signal-to-Noise Ratio for the last packet received from a peer.
+  int32 snr = 2;
+}
+
+// A request sent to a neighbor to check link health.
+message HealthCheckRequest {
+  // The timestamp (e.g., milliseconds since boot) when this request was sent.
+  // Used to calculate round-trip time.
+  uint64 sent_timestamp_ms = 1;
+}
+
+// A response to a HealthCheckRequest.
+message HealthCheckResponse {
+  // The original timestamp from the request, echoed back to the sender.
+  uint64 original_timestamp_ms = 1;
+  // The health metrics of the link *as seen by the responding node*.
+  HealthMetrics metrics_from_responder = 2;
 }
