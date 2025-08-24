@@ -4,17 +4,7 @@
 # This allows ESP-IDF to find components downloaded via PlatformIO's `lib_deps`.
 set(EXTRA_COMPONENT_DIRS $ENV{PIO_LIBDEPS_DIR})
 
-# Manually include the protobuf-c component's cmake file to ensure
-# the protobuf_c_generate function is defined before we call it.
-# This is a workaround for a potential build order issue with PlatformIO.
-include($ENV{IDF_FRAMEWORK_DIR}/components/protobuf-c/component.cmake)
-
-# Generate C sources from the .proto file.
-# This must be done before registering the component.
-protobuf_c_generate(
-    PROTO_FILES proto/AirCom.proto
-    COMPONENT main
-)
+# No longer need manual include or generation; this is handled by the aircom_proto component.
 
 idf_component_register(
     SRCS
@@ -52,6 +42,7 @@ idf_component_register(
         u8g2
         u8g2_esp32_hal
         protobuf-c
+        aircom_proto
 )
 
 # Add GUI Preview as standalone executable (for testing)
