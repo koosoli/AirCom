@@ -88,7 +88,28 @@ void networkTask(void *pvParameters) {
         }
         free(buffer);
 
-        // 4. Update our contact list from mesh nodes
+        // 4. Listen for incoming UDP packets (for discovery and health)
+        uint8_t rx_buffer[512];
+        char source_ip[40];
+        int len = receive_udp_packet(rx_buffer, sizeof(rx_buffer), source_ip, sizeof(source_ip));
+        if (len > 0) {
+            AirComPacket *received_packet = air_com_packet__unpack(NULL, len, rx_buffer);
+            if (received_packet) {
+                if (received_packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_NODE_INFO) {
+                    // This is a discovery packet from another node.
+                    // In a real implementation, we would add this to our peer list.
+                    ESP_LOGI(TAG, "Received NodeInfo from %s (Callsign: %s)", received_packet->from_node, received_packet->node_info->callsign);
+                } else if (received_packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_NETWORK_HEALTH) {
+                    // This is a health packet.
+                    ESP_LOGI(TAG, "Received NetworkHealth from %s (RSSI: %d)", received_packet->from_node, received_packet->network_health->rssi);
+                    // In a real implementation, we would update a map of peer link statistics.
+                }
+                air_com_packet__free_unpacked(received_packet, NULL);
+            }
+        }
+
+
+        // 5. Update our contact list from mesh nodes
         auto nodes = meshManager.getMeshNodes();
 
         // Update the global contact list with improved mutex handling
