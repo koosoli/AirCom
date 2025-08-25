@@ -32,7 +32,7 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_log.h"
-#include "include/config.h"
+#include "include/config_manager.h"
 #include "include/gps_task.h"
 #include "include/atak_task.h"
 #include "include/ui_task.h"
@@ -42,13 +42,14 @@
 #include "include/network_task.h"
 #include "include/atak_processor_task.h"
 #include "include/network_health_task.h"
-#include "ota_updater.h" // Assuming it's in the component include path
-#include "camera_service.h" // Assuming it's in the component include path
-#include "HaLowMeshManager.h"
-#include "AirCom.pb-c.h"
+#include "include/ota_updater.h"
+#include "include/camera_service.h"
+#include "include/config_manager.h"
+
+#include "../components/aircom_proto/AirCom.pb-c.h"
 #include "crypto.h"
 #include "nvs_flash.h"
-#include "bt_audio.h"
+#include "include/bt_audio.h"
 
 
 

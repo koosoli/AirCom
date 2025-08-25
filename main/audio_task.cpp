@@ -5,7 +5,7 @@
 #include "esp_log.h"
 #include "driver/i2s.h"
 #include "opus.h"
-#include "HaLowMeshManager.h"
+
 #include "lwip/sockets.h"
 #include <math.h>
 #include "freertos/task.h"

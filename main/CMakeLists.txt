@@ -28,6 +28,9 @@ idf_component_register(
         "atak_processor_task.cpp"
         "atak_task.cpp"
         "network_health_task.cpp"
+        "ota_updater.cpp"
+        "camera_service.cpp"
+        "bt_audio.cpp"
 
     INCLUDE_DIRS
         "include"
@@ -43,7 +46,6 @@ idf_component_register(
         u8g2
         u8g2_esp32_hal
         protobuf-c
-        aircom_proto
 )
 
 # Add GUI Preview as standalone executable (for testing)

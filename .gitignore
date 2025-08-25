@@ -12,20 +12,31 @@ obj/
 *.dylib
 *.exe
 
-# ESP-IDF specific
-sdkconfig
-sdkconfig.old
-components/
-managed_components/
-build/
-dist/
-
-# PlatformIO
+# Build outputs and artifacts
 .pio/
 .pioenvs/
 .piolibdeps/
 .pio/build/
 .pio/libdeps/
+build/
+cmake-build-*/
+out/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+
+# ESP-IDF specific
+sdkconfig
+sdkconfig.old
+managed_components/
+dist/
+
+# PlatformIO
 platformio.ini.bak
 
 # VS Code
@@ -35,7 +46,6 @@ platformio.ini.bak
 
 # CLion / IntelliJ
 .idea/
-cmake-build-*/
 *.iws
 *.iml
 *.ipr
@@ -58,7 +68,6 @@ cmake-build-*/
 *~
 
 # Emacs
-*~
 \#*\#
 /.emacs.desktop
 /.emacs.desktop.lock
@@ -81,7 +90,6 @@ Desktop.ini
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 env/
 venv/
@@ -117,7 +125,6 @@ log/
 # Temporary files
 *.tmp
 *.temp
-*.bak
 *.backup
 
 # Documentation builds
@@ -173,23 +180,19 @@ debug/
 *.tar
 *.zip
 
-# ESP32 specific
-components/
-!components/**/CMakeLists.txt
-!components/**/*.h
-!components/**/*.hpp
-!components/**/*.c
-!components/**/*.cpp
-!components/**/*.md
-!components/**/*.txt
-
-# Partition tables and configurations
+# ESP32 specific binaries and configurations
 partitions_*.csv
 sdkconfig*
 bootloader.bin
 partitions.bin
 app.bin
 firmware.bin
+*.bin
 
 # OTA files
 ota_data_initial.bin
+
+# Build artifacts (but keep source components)
+build/
+!components/
+!components/**/

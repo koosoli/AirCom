@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package aircom;
+
+// Node information for discovery
+message NodeInfo {
+    string callsign = 1;
+    string node_id = 2;
+    uint32 battery_level = 3;
+    uint32 signal_strength = 4;
+    double latitude = 5;
+    double longitude = 6;
+    uint32 contact_count = 7;
+}
+
+// Text message
+message TextMessage {
+    string text = 1;
+    uint64 timestamp = 2;
+    bool encrypted = 3;
+}
+
+// Network health information
+message NetworkHealth {
+    uint32 rssi = 1;
+    uint32 packet_loss = 2;
+    uint32 latency_ms = 3;
+    string mesh_status = 4;
+}
+
+// Audio data packet
+message AudioData {
+    bytes encoded_audio = 1;
+    uint32 sequence_number = 2;
+    uint32 timestamp = 3;
+    string codec_type = 4;
+    bool is_compressed = 5;
+}
+
+// Main packet container
+message AirComPacket {
+    string from_node = 1;
+    string to_node = 2;
+    uint64 timestamp = 3;
+    uint32 packet_id = 4;
+
+    oneof payload_variant {
+        NodeInfo node_info = 5;
+        TextMessage text_message = 6;
+        NetworkHealth network_health = 7;
+        AudioData audio_data = 8;
+    }
+}

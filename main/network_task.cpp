@@ -23,7 +23,7 @@
 
 // Define mutex timeout constants locally (should be in shared_data.h)
 #define MUTEX_TIMEOUT_DEFAULT pdMS_TO_TICKS(500)
-#include "HaLowMeshManager.h"
+
 #include "AirCom.pb-c.h"
 
 static const char* TAG = "NETWORK_TASK";

@@ -1,248 +1,251 @@
-
 # Contributing to AirCom
 
-Thank you for your interest in contributing to AirCom! This document provides guidelines for contributing to this project.
+Thank you for your interest in contributing to the AirCom tactical communication firmware! This document outlines the process for contributing to this project.
 
-## ⚠️ Important Notice
+## 📋 Code of Conduct
 
-**This is currently an untested proof-of-concept codebase.** While we welcome contributions, please be aware that:
+By participating in this project, you agree to maintain a respectful and professional environment for all contributors.
 
-- The code has not been validated on real hardware
-- Significant testing and debugging will be required
-- All contributions should be thoroughly tested before submission
+## 🚀 Quick Start for Contributors
 
-## 🚀 Getting Started
+### Development Environment Setup
 
-### Prerequisites
-- PlatformIO IDE or CLI
-- ESP32 development environment (ESP-IDF)
-- Git for version control
-- Basic understanding of ESP32 and FreeRTOS
-
-### Development Setup
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/yourusername/AirCom.git
    cd AirCom
    ```
 
 2. **Set up development environment**
    ```bash
-   # Install PlatformIO if not already installed
+   # Install PlatformIO
    pip install platformio
 
-   # Install ESP-IDF (required for ESP32 development)
-   platformio platform install espressif32
+   # Generate protocol buffers
+   protoc --c_out=components/aircom_proto --proto_path=. AirCom.proto
+
+   # Test build
+   pio run -e xiao_esp32s3
    ```
 
-3. **Build and test**
-   ```bash
-   # Build the project
-   platformio run
+3. **Set up IDE**
+   - **VS Code**: Install PlatformIO extension
+   - **CLion**: Configure CMake project
+   - **Eclipse**: Import as Makefile project
 
-   # Run GUI preview for testing
-   .\simple_gui_preview.bat  # Windows
-   # or
-   ./simple_gui_preview.sh  # Linux/Mac
-   ```
+## 🛠️ Development Workflow
 
-## 📋 Contribution Process
-
-### 1. Fork and Branch
+### 1. Create Feature Branch
 ```bash
-# Fork the repository on GitHub
-# Then create a feature branch
+# Create feature branch
 git checkout -b feature/your-feature-name
+
+# Or for bug fixes
+git checkout -b bugfix/issue-description
 ```
 
-### 2. Development Guidelines
+### 2. Development Process
+- Follow the existing code structure and naming conventions
+- Add comprehensive comments for new functions
+- Test on multiple ESP32 targets when possible
+- Ensure security best practices are maintained
 
-#### Code Standards
-- **Language**: C++11 with C compatibility for ESP-IDF
-- **Naming**: Use descriptive names following ESP-IDF conventions
-- **Documentation**: Document all public functions and complex logic
-- **Error Handling**: Use the provided logging system instead of ESP_LOGX
-- **Memory Management**: Follow established callback and memory management patterns
+### 3. Code Standards
 
-#### Code Structure
-```
-AirCom/
-├── main/                    # Main application
-│   ├── include/            # Headers
-│   ├── *.cpp               # Implementation files
-│   └── CMakeLists.txt      # Build configuration
-├── components/            # ESP-IDF components
-└── [other project files]
-```
+#### C/C++ Standards
+- Use ESP-IDF coding guidelines
+- Use meaningful variable and function names
+- Add Doxygen-style comments for public APIs
+- Handle errors gracefully with proper logging
 
-### 3. Logging System
-Use the project's logging system instead of ESP_LOGX:
+#### Example Code Structure
 ```cpp
-#include "include/logging_system.h"
+/**
+ * @brief Process incoming tactical data packet
+ *
+ * This function handles the decryption and validation of incoming
+ * tactical communication packets with security verification.
+ *
+ * @param[in] packet_data Raw packet data buffer
+ * @param[in] data_len Length of packet data
+ * @param[out] processed_data Decrypted and validated data
+ * @return esp_err_t ESP_OK on success, error code otherwise
+ */
+esp_err_t process_tactical_packet(const uint8_t* packet_data,
+                                 size_t data_len,
+                                 tactical_data_t* processed_data) {
+    ESP_LOGI(TAG, "Processing tactical packet of length %d", data_len);
 
-// Component-specific logging
-LOG_INFO("NETWORK", "Network initialized successfully");
-LOG_ERROR("AUDIO", ERROR_NONE, "Audio initialization failed");
-LOG_DEBUG("UI", "Button pressed: %s", button_name);
+    // Validate input parameters
+    if (packet_data == NULL || processed_data == NULL) {
+        ESP_LOGE(TAG, "Invalid input parameters");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // Process packet with security checks
+    esp_err_t ret = decrypt_and_validate_packet(packet_data, data_len, processed_data);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Packet processing failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "Successfully processed tactical packet");
+    return ESP_OK;
+}
 ```
 
 ### 4. Testing Requirements
 
-#### GUI Preview Testing
-- Test all interface screens in the GUI preview
-- Verify navigation flows
-- Test system simulation scenarios
-- Check for UI responsiveness
+#### Unit Testing
+- Test all new functions with various input scenarios
+- Include edge cases and error conditions
+- Verify security functions work correctly
 
-#### Compilation Testing
-- Ensure code compiles on all supported platforms
-- Test with different hardware configurations
-- Verify no new warnings or errors
+#### Hardware Testing
+- Test on at least one supported ESP32 board
+- Verify functionality in real-world conditions
+- Test power consumption and performance metrics
 
-#### Code Review
-- Self-review your code before submission
-- Check for memory leaks and resource management
-- Verify thread safety considerations
+#### Security Testing
+- Verify cryptographic functions work correctly
+- Test secure random number generation
+- Validate key exchange mechanisms
 
-### 5. Commit Guidelines
+### 5. Documentation Updates
 
-#### Commit Messages
-- Use clear, descriptive commit messages
-- Start with a verb (Add, Fix, Update, etc.)
-- Keep first line under 50 characters
-- Add detailed description for complex changes
+#### Code Documentation
+- Update function comments with parameter descriptions
+- Document any new configuration options
+- Update build instructions if needed
 
-**Examples:**
-```
-Add Bluetooth device discovery functionality
-Fix memory leak in audio callback system
-Update README with Wi-Fi HaLow configuration
-```
+#### README Updates
+- Add new features to feature list
+- Update hardware compatibility matrix
+- Include troubleshooting information
 
-#### Commit Structure
-```bash
-# Make small, focused commits
-git add specific-files
-git commit -m "Clear commit message"
+## 📝 Pull Request Process
 
-# Group related changes
-git add feature-files
-git commit -m "Implement feature X"
-```
+### 1. Pre-Submission Checklist
+- [ ] Code compiles successfully on all targets
+- [ ] All tests pass
+- [ ] Documentation is updated
+- [ ] Security review completed
+- [ ] Hardware testing completed
 
-### 6. Pull Request Process
+### 2. Pull Request Template
+Please use the following template for pull requests:
 
-#### Before Submitting
-1. **Test thoroughly** - Ensure no regressions
-2. **Update documentation** - Modify README if needed
-3. **Check code style** - Follow established patterns
-4. **Verify compilation** - Test on supported platforms
-
-#### Pull Request Template
 ```markdown
 ## Description
-Brief description of the changes
+[Brief description of the changes]
 
 ## Changes Made
-- List of specific changes
-- Files modified
-- New features added
+- [List of specific changes]
+- [Impact on existing functionality]
 
 ## Testing
-- How was this tested?
-- GUI preview verification
-- Compilation testing
+- [Testing performed]
+- [Hardware platforms tested]
+- [Security verification]
 
 ## Related Issues
-- Link to any related issues
-- Reference issue numbers
+- Closes #[issue number]
+- Addresses #[issue number]
+
+## Checklist
+- [x] Code follows project standards
+- [x] Documentation updated
+- [x] Tests added/updated
+- [x] Security review passed
+- [x] Hardware testing completed
 ```
 
-## 🏗️ Architecture Guidelines
+### 3. Review Process
+1. **Automated Checks**: GitHub Actions will run basic validation
+2. **Code Review**: At least one maintainer will review the code
+3. **Security Review**: Security-critical changes require additional review
+4. **Testing Review**: Hardware testing results will be verified
 
-### Component Architecture
-- Follow the established plugin-based design pattern
-- Use interfaces for hardware abstraction
-- Implement proper dependency injection
+## 🐛 Bug Reports
 
-### Thread Safety
-- Use established mutex patterns
-- Follow callback safety guidelines
-- Implement proper synchronization
+### Bug Report Template
+When reporting bugs, please include:
 
-### Memory Management
-- Use the provided SafeCallback system
-- Follow established memory tracking patterns
-- Avoid manual memory management where possible
+```markdown
+## Bug Description
+[Clear description of the issue]
 
-### Error Handling
-- Use the logging system for all errors
-- Follow established error reporting patterns
-- Implement proper error recovery
+## Steps to Reproduce
+1. [Step 1]
+2. [Step 2]
+3. [Expected behavior]
+4. [Actual behavior]
 
-## 🔧 Development Tools
+## Environment
+- Hardware: [ESP32 board model]
+- Firmware version: [commit hash or version]
+- PlatformIO version: [version]
+- ESP-IDF version: [version]
 
-### GUI Preview
-```bash
-# Test interface without hardware
-./simple_gui_preview.bat  # Windows
-# or
-python gui_preview.py     # Cross-platform
+## Logs
+[Relevant log output]
 ```
 
-### Build System
-```bash
-# Build for specific platform
-platformio run --environment xiao_esp32s3
-platformio run --environment heltec_ht_hc32
+## 🔒 Security Considerations
 
-# Clean build
-platformio run --target clean
+### Security Guidelines
+- Never commit sensitive information (keys, credentials, etc.)
+- Use secure random number generation
+- Implement proper error handling
+- Follow cryptographic best practices
+- Validate all inputs and outputs
+
+### Security Review Process
+- Security-critical changes require additional review
+- Use ESP32's hardware security features when possible
+- Document security implications of changes
+
+## 📚 Resources
+
+### Documentation
+- [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/)
+- [PlatformIO Documentation](https://docs.platformio.org/)
+- [Wi-Fi HaLow Specifications](https://www.wi-fi.org/discover-wi-fi/wi-fi-halow)
+
+### Development Tools
+- **ESP-IDF VS Code Extension**: Enhanced ESP32 development
+- **PlatformIO IDE**: Integrated development environment
+- **ESP32 DevKitC**: Primary development board
+
+## 🎯 Feature Requests
+
+### Feature Request Template
+```markdown
+## Feature Description
+[Clear description of the requested feature]
+
+## Use Case
+[Why this feature is needed]
+
+## Implementation Approach
+[Suggested implementation strategy]
+
+## Impact Assessment
+- Security implications: [analysis]
+- Performance impact: [analysis]
+- Hardware requirements: [analysis]
 ```
-
-### Code Analysis
-- Use ESP-IDF's built-in static analysis tools
-- Review code with PlatformIO's linting features
-- Check for memory leaks with the built-in tracker
-
-## 📊 Testing Requirements
-
-### Mandatory Testing
-- [ ] GUI preview functionality works
-- [ ] Code compiles on target platforms
-- [ ] No new compiler warnings
-- [ ] Documentation updated
-- [ ] Error handling implemented
-
-### Recommended Testing
-- [ ] Memory leak testing
-- [ ] Thread safety verification
-- [ ] Performance impact assessment
-- [ ] Cross-platform compatibility
-
-## 🤝 Code Review Process
-
-### Review Checklist
-- [ ] Code follows established patterns
-- [ ] Documentation is comprehensive
-- [ ] Error handling is appropriate
-- [ ] Thread safety is maintained
-- [ ] Memory management is correct
-- [ ] Testing is adequate
-
-### Review Comments
-- Be constructive and specific
-- Suggest improvements, don't just criticize
-- Reference coding standards
-- Provide examples when possible
 
 ## 📞 Getting Help
 
-### Resources
-- **ESP-IDF Documentation**: https://docs.espressif.com/projects/esp-idf/
-- **PlatformIO Documentation**: https://docs.platformio.org/
-- **FreeRTOS Documentation**: https://www.freertos.org/
+- **Issues**: Use GitHub Issues for bugs and feature requests
+- **Discussions**: Use GitHub Discussions for general questions
+- **Documentation**: Check existing documentation first
 
-### Communication
-- **Issues**: Use GitHub issues for bugs and feature requests
-- **Discussions**: Use GitHub discussions for questions and ideas
+## 🙏 Acknowledgments
+
+Thank you for contributing to making tactical communication more secure and reliable!
+
+---
+
+**Happy coding!** 🎯⚡
