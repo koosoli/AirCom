@@ -16,34 +16,35 @@
 #include "mm_iot_sdk.h"
 #include "HaLowMeshManager.h"
 #include "include/config.h"
+#include "driver/spi_common.h"
 
-static const char* TAG = "XIAO_INTEGRATION_TEST";
+static const char* XIAO_TEST_TAG = "XIAO_INTEGRATION_TEST";
 
 /**
  * @brief Test XIAO ESP32 board configuration
  */
 bool test_xiao_board_config(void) {
-    ESP_LOGI(TAG, "Testing XIAO ESP32 board configuration...");
+    ESP_LOGI(XIAO_TEST_TAG, "Testing XIAO ESP32 board configuration...");
 
     // Test board type detection
-    ESP_LOGI(TAG, "Board type: %s (ID: %d)", XIAO_BOARD_TYPE, XIAO_BOARD_TYPE_ID);
+    ESP_LOGI(XIAO_TEST_TAG, "Board type: %s (ID: %d)", XIAO_BOARD_TYPE, XIAO_BOARD_TYPE_ID);
 
     // Test pin configuration
-    ESP_LOGI(TAG, "SPI Configuration:");
-    ESP_LOGI(TAG, "  - MOSI: %d", get_spi_mosi_pin());
-    ESP_LOGI(TAG, "  - MISO: %d", get_spi_miso_pin());
-    ESP_LOGI(TAG, "  - SCLK: %d", get_spi_sclk_pin());
-    ESP_LOGI(TAG, "  - CS: %d", get_spi_cs_pin());
-    ESP_LOGI(TAG, "  - RESET: %d", get_spi_reset_pin());
-    ESP_LOGI(TAG, "  - INT: %d", get_spi_int_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "SPI Configuration:");
+    ESP_LOGI(XIAO_TEST_TAG, "  - MOSI: %d", get_spi_mosi_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "  - MISO: %d", get_spi_miso_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "  - SCLK: %d", get_spi_sclk_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "  - CS: %d", get_spi_cs_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "  - RESET: %d", get_spi_reset_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "  - INT: %d", get_spi_int_pin());
 
     // Test other peripherals
-    ESP_LOGI(TAG, "Other Peripherals:");
-    ESP_LOGI(TAG, "  - LED: %d", get_led_pin());
-    ESP_LOGI(TAG, "  - Button: %d", get_button_pin());
-    ESP_LOGI(TAG, "  - Battery ADC: %d", get_battery_adc_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "Other Peripherals:");
+    ESP_LOGI(XIAO_TEST_TAG, "  - LED: %d", get_led_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "  - Button: %d", get_button_pin());
+    ESP_LOGI(XIAO_TEST_TAG, "  - Battery ADC: %d", get_battery_adc_pin());
 
-    ESP_LOGI(TAG, "XIAO ESP32 board configuration test passed");
+    ESP_LOGI(XIAO_TEST_TAG, "XIAO ESP32 board configuration test passed");
     return true;
 }
 
@@ -51,23 +52,23 @@ bool test_xiao_board_config(void) {
  * @brief Test MM-IoT-SDK initialization
  */
 bool test_mm_iot_sdk(void) {
-    ESP_LOGI(TAG, "Testing MM-IoT-SDK initialization...");
+    ESP_LOGI(XIAO_TEST_TAG, "Testing MM-IoT-SDK initialization...");
 
     auto& sdk = MMIoTSDK::getInstance();
 
     if (sdk.isInitialized()) {
-        ESP_LOGI(TAG, "MM-IoT-SDK already initialized");
+        ESP_LOGI(XIAO_TEST_TAG, "MM-IoT-SDK already initialized");
         return true;
     }
 
     // Test SDK initialization
     bool success = sdk.initialize("AirCom-HaLow", "aircom2024", "00");
     if (!success) {
-        ESP_LOGE(TAG, "MM-IoT-SDK initialization failed");
+        ESP_LOGE(XIAO_TEST_TAG, "MM-IoT-SDK initialization failed");
         return false;
     }
 
-    ESP_LOGI(TAG, "MM-IoT-SDK initialization test passed");
+    ESP_LOGI(XIAO_TEST_TAG, "MM-IoT-SDK initialization test passed");
     return true;
 }
 
@@ -75,33 +76,33 @@ bool test_mm_iot_sdk(void) {
  * @brief Test HaLowMeshManager integration
  */
 bool test_halow_mesh_manager(void) {
-    ESP_LOGI(TAG, "Testing HaLowMeshManager integration...");
+    ESP_LOGI(XIAO_TEST_TAG, "Testing HaLowMeshManager integration...");
 
     auto& meshManager = HaLowMeshManager::getInstance();
 
     // Test initialization
     bool success = meshManager.begin();
     if (!success) {
-        ESP_LOGE(TAG, "HaLowMeshManager initialization failed");
+        ESP_LOGE(XIAO_TEST_TAG, "HaLowMeshManager initialization failed");
         return false;
     }
 
     // Test discovery start
     success = meshManager.startDiscovery();
     if (!success) {
-        ESP_LOGE(TAG, "HaLowMeshManager discovery start failed");
+        ESP_LOGE(XIAO_TEST_TAG, "HaLowMeshManager discovery start failed");
         return false;
     }
 
     // Test getting mesh nodes (will return mock data for now)
     auto nodes = meshManager.getMeshNodes();
-    ESP_LOGI(TAG, "Discovered %zu mesh nodes", nodes.size());
+    ESP_LOGI(XIAO_TEST_TAG, "Discovered %zu mesh nodes", nodes.size());
 
     // Test connection status
     bool connected = meshManager.get_connection_status();
-    ESP_LOGI(TAG, "Connection status: %s", connected ? "Connected" : "Disconnected");
+    ESP_LOGI(XIAO_TEST_TAG, "Connection status: %s", connected ? "Connected" : "Disconnected");
 
-    ESP_LOGI(TAG, "HaLowMeshManager integration test passed");
+    ESP_LOGI(XIAO_TEST_TAG, "HaLowMeshManager integration test passed");
     return true;
 }
 
@@ -109,29 +110,29 @@ bool test_halow_mesh_manager(void) {
  * @brief Test SPI configuration for FGH100M-H module
  */
 bool test_spi_configuration(void) {
-    ESP_LOGI(TAG, "Testing SPI configuration for FGH100M-H module...");
+    ESP_LOGI(XIAO_TEST_TAG, "Testing SPI configuration for FGH100M-H module...");
 
     // Check SPI configuration constants
-    ESP_LOGI(TAG, "SPI Host: %d", FGH100M_SPI_HOST);
-    ESP_LOGI(TAG, "SPI Clock Speed: %d Hz", FGH100M_SPI_CLOCK_SPEED);
-    ESP_LOGI(TAG, "SPI Mode: %d", FGH100M_SPI_MODE);
-    ESP_LOGI(TAG, "Max TX Buffer: %d bytes", FGH100M_MAX_TX_BUFFER);
-    ESP_LOGI(TAG, "Max RX Buffer: %d bytes", FGH100M_MAX_RX_BUFFER);
+    ESP_LOGI(XIAO_TEST_TAG, "SPI Host: %d", FGH100M_SPI_HOST);
+    ESP_LOGI(XIAO_TEST_TAG, "SPI Clock Speed: %d Hz", FGH100M_SPI_CLOCK_SPEED);
+    ESP_LOGI(XIAO_TEST_TAG, "SPI Mode: %d", FGH100M_SPI_MODE);
+    ESP_LOGI(XIAO_TEST_TAG, "Max TX Buffer: %d bytes", FGH100M_MAX_TX_BUFFER);
+    ESP_LOGI(XIAO_TEST_TAG, "Max RX Buffer: %d bytes", FGH100M_MAX_RX_BUFFER);
 
     // Check timing constants
-    ESP_LOGI(TAG, "Reset Delay: %d ms", FGH100M_RESET_DELAY);
-    ESP_LOGI(TAG, "Startup Delay: %d ms", FGH100M_STARTUP_DELAY);
-    ESP_LOGI(TAG, "SPI Timeout: %d ms", FGH100M_SPI_TIMEOUT);
-    ESP_LOGI(TAG, "Command Timeout: %d ms", FGH100M_COMMAND_TIMEOUT);
+    ESP_LOGI(XIAO_TEST_TAG, "Reset Delay: %d ms", FGH100M_RESET_DELAY);
+    ESP_LOGI(XIAO_TEST_TAG, "Startup Delay: %d ms", FGH100M_STARTUP_DELAY);
+    ESP_LOGI(XIAO_TEST_TAG, "SPI Timeout: %d ms", FGH100M_SPI_TIMEOUT);
+    ESP_LOGI(XIAO_TEST_TAG, "Command Timeout: %d ms", FGH100M_COMMAND_TIMEOUT);
 
     // Verify SPI pins are properly configured
     if (get_spi_mosi_pin() < 0 || get_spi_miso_pin() < 0 ||
         get_spi_sclk_pin() < 0 || get_spi_cs_pin() < 0) {
-        ESP_LOGE(TAG, "SPI pins not properly configured");
+        ESP_LOGE(XIAO_TEST_TAG, "SPI pins not properly configured");
         return false;
     }
 
-    ESP_LOGI(TAG, "SPI configuration test passed");
+    ESP_LOGI(XIAO_TEST_TAG, "SPI configuration test passed");
     return true;
 }
 
@@ -139,7 +140,7 @@ bool test_spi_configuration(void) {
  * @brief Run all integration tests
  */
 bool run_xiao_integration_tests(void) {
-    ESP_LOGI(TAG, "Starting XIAO ESP32 integration tests...");
+    ESP_LOGI(XIAO_TEST_TAG, "Starting XIAO ESP32 integration tests...");
 
     bool all_tests_passed = true;
 
@@ -164,9 +165,9 @@ bool run_xiao_integration_tests(void) {
     }
 
     if (all_tests_passed) {
-        ESP_LOGI(TAG, "All XIAO ESP32 integration tests passed!");
+        ESP_LOGI(XIAO_TEST_TAG, "All XIAO ESP32 integration tests passed!");
     } else {
-        ESP_LOGE(TAG, "Some XIAO ESP32 integration tests failed!");
+        ESP_LOGE(XIAO_TEST_TAG, "Some XIAO ESP32 integration tests failed!");
     }
 
     return all_tests_passed;
@@ -176,7 +177,7 @@ bool run_xiao_integration_tests(void) {
  * @brief Initialize XIAO ESP32 integration testing
  */
 void xiao_integration_test_init(void) {
-    ESP_LOGI(TAG, "XIAO ESP32 integration test module initialized");
+    ESP_LOGI(XIAO_TEST_TAG, "XIAO ESP32 integration test module initialized");
 
     // Run tests (can be called from main or a dedicated test task)
     // run_xiao_integration_tests();

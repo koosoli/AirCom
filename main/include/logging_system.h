@@ -312,10 +312,15 @@ void logging_system_clear_filters(void);
 // These macros provide backward compatibility with existing ESP_LOGX calls
 // They automatically map to the new logging system
 
+#undef ESP_LOGE
 #define ESP_LOGE(tag, format, ...) LOG_ERROR(tag, ERROR_NONE, format, ##__VA_ARGS__)
+#undef ESP_LOGW
 #define ESP_LOGW(tag, format, ...) LOG_WARNING(tag, format, ##__VA_ARGS__)
+#undef ESP_LOGI
 #define ESP_LOGI(tag, format, ...) LOG_INFO(tag, format, ##__VA_ARGS__)
+#undef ESP_LOGD
 #define ESP_LOGD(tag, format, ...) LOG_DEBUG(tag, format, ##__VA_ARGS__)
+#undef ESP_LOGV
 #define ESP_LOGV(tag, format, ...) LOG_VERBOSE(tag, format, ##__VA_ARGS__)
 
 // Error context logging macros

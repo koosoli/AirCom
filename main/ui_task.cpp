@@ -2,6 +2,7 @@
 #include "include/config.h"
 #include "include/button_handler.h"
 #include "include/shared_data.h"
+#include "include/gps_task.h"
 #include "bt_audio.h"
 #include "esp_log.h"
 #include "freertos/task.h"
@@ -12,7 +13,7 @@
 #include "u8g2_esp32_hal.h"
 #include "AirCom.pb-c.h"
 #include "crypto.h"
-#include "HaLowMeshManager.h"
+#include "HaLowManager/include/HaLowMeshManager.h"
 
 // Define the different states (screens) of the UI
 typedef enum {
@@ -154,8 +155,8 @@ static void drawMapScreen() {
                 int y = 32 - (int)(delta_lat * 50000);
 
                 // Clamp to screen edges
-                if (x < 0) x = 0; if (x > 127) x = 127;
-                if (y < 12) y = 12; if (y > 63) y = 63;
+                if (x < 0) { x = 0; } if (x > 127) { x = 127; }
+                if (y < 12) { y = 12; } if (y > 63) { y = 63; }
 
                 u8g2_DrawStr(&u8g2, x, y, teammate.callsign.c_str());
             }
@@ -175,8 +176,8 @@ void uiTask(void *pvParameters) {
 
     // 1. Initialize the U8g2 HAL
     u8g2_esp32_hal_t u8g2_esp32_hal = U8G2_ESP32_HAL_DEFAULT;
-    u8g2_esp32_hal.bus.i2c.sda = PIN_OLED_SDA;
-    u8g2_esp32_hal.bus.i2c.scl = PIN_OLED_SCL;
+    u8g2_esp32_hal.bus.i2c.sda = (gpio_num_t)PIN_OLED_SDA;
+    u8g2_esp32_hal.bus.i2c.scl = (gpio_num_t)PIN_OLED_SCL;
     u8g2_esp32_hal_init(u8g2_esp32_hal);
 
     // 2. Choose the appropriate setup function for the display
@@ -453,7 +454,7 @@ void uiTask(void *pvParameters) {
         uint64_t target_frame_time = UI_FRAME_INTERVAL_MS * 1000;
 
         if (frame_time < target_frame_time) {
-            uint32_t sleep_ticks = pdUS_TO_TICKS(target_frame_time - frame_time);
+            uint32_t sleep_ticks = pdMS_TO_TICKS((target_frame_time - frame_time) / 1000);
             if (sleep_ticks > 0) {
                 vTaskDelay(sleep_ticks);
             }

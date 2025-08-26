@@ -25,7 +25,7 @@
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
 
-static const char* TAG = "ATAK_PROC";
+static const char* ATAK_PROC_TAG = "ATAK_PROC";
 
 // ============================================================================
 // ATAK PROCESSOR TASK IMPLEMENTATION
@@ -56,12 +56,11 @@ static std::string parse_cot_value(const std::string& cot, const char* key) {
  * @param pvParameters FreeRTOS task parameters
  */
 void atak_processor_task(void *pvParameters) {
-    ESP_LOGI(TAG, "ATAK Processor task started");
+    LOG_INFO(ATAK_PROC_TAG, "ATAK Processor task started");
 
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (sock < 0) {
-        ESP_LOGE(TAG, "ATAK RX: Unable to create socket: errno %d", errno);
-        log_message(LOG_LEVEL_ERROR, "ATAK processor socket creation failed");
+        LOG_ERROR(ATAK_PROC_TAG, ERROR_SOCKET_CREATE, "ATAK RX: Unable to create socket: errno %d", errno);
         vTaskDelete(NULL);
         return; // Ensure task terminates
     }
@@ -72,8 +71,7 @@ void atak_processor_task(void *pvParameters) {
     dest_addr.sin_port = htons(ATAK_PORT);
     int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
     if (err < 0) {
-        ESP_LOGE(TAG, "ATAK RX: Socket unable to bind: errno %d", errno);
-        log_message(LOG_LEVEL_ERROR, "ATAK processor socket bind failed");
+        LOG_ERROR(ATAK_PROC_TAG, ERROR_SOCKET_BIND, "ATAK RX: Socket unable to bind: errno %d", errno);
         close(sock); // Clean up socket before exiting
         vTaskDelete(NULL);
         return; // Ensure task terminates
@@ -89,7 +87,7 @@ void atak_processor_task(void *pvParameters) {
             AirComPacket *packet = air_com_packet__unpack(NULL, len, rx_buffer);
             if (packet != NULL) {
                 if (packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_COT_MESSAGE) {
-                    ESP_LOGI(TAG, "Received CoT message");
+                    LOG_INFO(ATAK_PROC_TAG, "Received CoT message");
 
                     TeammateInfo new_info;
                     std::string cot_xml = packet->cot_message;
@@ -113,18 +111,15 @@ void atak_processor_task(void *pvParameters) {
                         }
                         xSemaphoreGive(g_teammate_locations_mutex);
                     } else {
-                        ESP_LOGE(TAG, "Failed to acquire teammate locations mutex");
-                        log_message(LOG_LEVEL_WARN, "Failed to acquire teammate locations mutex");
+                        LOG_WARNING(ATAK_PROC_TAG, "Failed to acquire teammate locations mutex");
                     }
                 }
                 air_com_packet__free_unpacked(packet, NULL);
             } else {
-                ESP_LOGE(TAG, "Failed to unpack CoT packet - possible memory leak prevented");
-                log_message(LOG_LEVEL_ERROR, "Failed to unpack CoT packet");
+                LOG_ERROR(ATAK_PROC_TAG, ERROR_INVALID_PARAMETER, "Failed to unpack CoT packet - possible memory leak prevented");
             }
         } else if (len < 0) {
-            ESP_LOGE(TAG, "ATAK recvfrom failed: errno %d", errno);
-            log_message(LOG_LEVEL_ERROR, "ATAK recvfrom failed");
+            LOG_ERROR(ATAK_PROC_TAG, ERROR_SOCKET_RECEIVE, "ATAK recvfrom failed: errno %d", errno);
         }
 
         vTaskDelay(pdMS_TO_TICKS(100)); // Prevent busy-looping

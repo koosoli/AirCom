@@ -20,13 +20,19 @@
 #include "include/network_utils.h"
 #include "include/error_handling.h"
 #include "include/crypto.h"
+#include "HaLowManager/include/HaLowMeshManager.h"
+#include "logging_system.h"
+#include "lwip/sockets.h"
+#include "esp_efuse.h"
+#include "esp_mac.h"
+
 
 // Define mutex timeout constants locally (should be in shared_data.h)
 #define MUTEX_TIMEOUT_DEFAULT pdMS_TO_TICKS(500)
 
 #include "AirCom.pb-c.h"
 
-static const char* TAG = "NETWORK_TASK";
+static const char* NETWORK_TASK_TAG = "NETWORK_TASK";
 
 // ============================================================================
 // NETWORK TASK IMPLEMENTATION
@@ -39,11 +45,11 @@ static const char* TAG = "NETWORK_TASK";
  * with other AirCom nodes.
  */
 void networkTask(void *pvParameters) {
-    ESP_LOGI(TAG, "networkTask started");
+    ESP_LOGI(NETWORK_TASK_TAG, "networkTask started");
 
     // Initialize network utilities
     if (network_utils_init() != true) {
-        ESP_LOGE(TAG, "Failed to initialize network utilities");
+        ESP_LOGE(NETWORK_TASK_TAG, "Failed to initialize network utilities");
         vTaskDelete(NULL);
         return;
     }
@@ -54,7 +60,7 @@ void networkTask(void *pvParameters) {
 
     // Main task loop
     for (;;) {
-        ESP_LOGI(TAG, "Broadcasting discovery packet...");
+        ESP_LOGI(NETWORK_TASK_TAG, "Broadcasting discovery packet...");
 
         // 1. Create a NodeInfo packet to broadcast our presence.
         AirComPacket packet = AIR_COM_PACKET__INIT;
@@ -65,7 +71,7 @@ void networkTask(void *pvParameters) {
 
         node_info.callsign = (char*)CALLSIGN;
         uint8_t mac[6];
-        esp_efuse_mac_get_default(mac);
+        esp_read_mac(mac, ESP_MAC_WIFI_STA);
         char uid[32];
         sprintf(uid, "ESP32-%02x%02x%02x", mac[3], mac[4], mac[5]);
         node_info.node_id = uid;
@@ -74,8 +80,7 @@ void networkTask(void *pvParameters) {
         size_t packed_size = air_com_packet__get_packed_size(&packet);
         uint8_t *buffer = (uint8_t *)malloc(packed_size);
         if (buffer == NULL) {
-            ESP_LOGE(TAG, "Failed to allocate buffer for protobuf packet");
-            log_message(LOG_LEVEL_ERROR, "Failed to allocate buffer for protobuf packet");
+            LOG_NETWORK_ERROR(ERROR_MEMORY_ALLOCATION, "Failed to allocate buffer for protobuf packet");
             vTaskDelay(pdMS_TO_TICKS(1000)); // Wait before retry
             continue;
         }
@@ -83,8 +88,7 @@ void networkTask(void *pvParameters) {
 
         // 3. Broadcast the serialized packet using network utilities
         if (!broadcast_udp_packet(buffer, packed_size, MESH_DISCOVERY_PORT)) {
-            ESP_LOGE(TAG, "Failed to broadcast discovery packet");
-            log_message(LOG_LEVEL_ERROR, "Failed to broadcast discovery packet");
+            LOG_NETWORK_ERROR(ERROR_SOCKET_SEND, "Failed to broadcast discovery packet");
         }
         free(buffer);
 
@@ -98,10 +102,10 @@ void networkTask(void *pvParameters) {
                 if (received_packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_NODE_INFO) {
                     // This is a discovery packet from another node.
                     // In a real implementation, we would add this to our peer list.
-                    ESP_LOGI(TAG, "Received NodeInfo from %s (Callsign: %s)", received_packet->from_node, received_packet->node_info->callsign);
+                    ESP_LOGI(NETWORK_TASK_TAG, "Received NodeInfo from %s (Callsign: %s)", received_packet->from_node, received_packet->node_info->callsign);
                 } else if (received_packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_NETWORK_HEALTH) {
                     // This is a health packet.
-                    ESP_LOGI(TAG, "Received NetworkHealth from %s (RSSI: %d)", received_packet->from_node, received_packet->network_health->rssi);
+                    ESP_LOGI(NETWORK_TASK_TAG, "Received NetworkHealth from %s (RSSI: %d)", received_packet->from_node, received_packet->network_health->rssi);
                     // In a real implementation, we would update a map of peer link statistics.
                 }
                 air_com_packet__free_unpacked(received_packet, NULL);
@@ -117,12 +121,14 @@ void networkTask(void *pvParameters) {
             g_contact_list.clear();
             for(const auto& node : nodes) {
                 // In a real implementation, we'd get the callsign from the parsed JSON
-                g_contact_list.push_back({ .callsign = "CONTACT-" + std::to_string(g_contact_list.size() + 1), .ipAddress = node.ipv6Address });
+                MeshNodeInfo newNode;
+                newNode.callsign = "CONTACT-" + std::to_string(g_contact_list.size() + 1);
+                newNode.ipAddress = node.ipAddress;
+                g_contact_list.push_back(newNode);
             }
             xSemaphoreGive(g_contact_list_mutex);
         } else {
-            ESP_LOGE(TAG, "Failed to get contact list mutex within timeout");
-            log_message(LOG_LEVEL_WARN, "Failed to get contact list mutex within timeout");
+            LOG_NETWORK_WARNING("Failed to get contact list mutex within timeout");
         }
 
         // Send a simple UI update notification for the contact count
@@ -131,13 +137,12 @@ void networkTask(void *pvParameters) {
 
         // Check for outgoing text messages to send
         outgoing_message_t out_msg;
-        if (xQueueReceive(outgoing_message_queue, (TickType_t)0) == pdPASS) {
-            ESP_LOGI(TAG, "Dequeued a message to send to %s", out_msg.target_ip);
+        if (xQueueReceive(outgoing_message_queue, &out_msg, (TickType_t)0) == pdPASS) {
+            ESP_LOGI(NETWORK_TASK_TAG, "Dequeued a message to send to %s", out_msg.target_ip);
 
             // Use network utilities to send TCP message
             if (!send_tcp_message_default(out_msg.target_ip, out_msg.encrypted_payload)) {
-                ESP_LOGE(TAG, "Failed to send TCP message to %s", out_msg.target_ip);
-                log_message(LOG_LEVEL_ERROR, "Failed to send TCP message");
+                LOG_NETWORK_ERROR(ERROR_SOCKET_SEND, "Failed to send TCP message to %s", out_msg.target_ip);
             }
         }
 
@@ -151,11 +156,11 @@ void networkTask(void *pvParameters) {
  * This task listens for incoming TCP connections and processes received messages.
  */
 void tcp_server_task(void *pvParameters) {
-    ESP_LOGI(TAG, "TCP server task started");
+    ESP_LOGI(NETWORK_TASK_TAG, "TCP server task started");
 
     // Initialize network utilities if not already done
     if (network_utils_init() != true) {
-        ESP_LOGE(TAG, "Failed to initialize network utilities");
+        ESP_LOGE(NETWORK_TASK_TAG, "Failed to initialize network utilities");
         vTaskDelete(NULL);
         return;
     }
@@ -174,37 +179,33 @@ void tcp_server_task(void *pvParameters) {
 
     int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
     if (listen_sock < 0) {
-        ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-        log_message(LOG_LEVEL_ERROR, "Unable to create TCP server socket");
+        LOG_NETWORK_ERROR(ERROR_SOCKET_CREATE, "Unable to create socket: errno %d", errno);
         vTaskDelete(NULL);
         return;
     }
-    ESP_LOGI(TAG, "Socket created");
+    ESP_LOGI(NETWORK_TASK_TAG, "Socket created");
 
     int err = bind(listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
     if (err != 0) {
-        ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
-        log_message(LOG_LEVEL_ERROR, "TCP server socket bind failed");
+        LOG_NETWORK_ERROR(ERROR_SOCKET_BIND, "Socket unable to bind: errno %d", errno);
         goto CLEAN_UP;
     }
-    ESP_LOGI(TAG, "Socket bound, port %d", TEXT_PORT);
+    ESP_LOGI(NETWORK_TASK_TAG, "Socket bound, port %d", TEXT_PORT);
 
     err = listen(listen_sock, 1);
     if (err != 0) {
-        ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
-        log_message(LOG_LEVEL_ERROR, "TCP server listen failed");
+        LOG_NETWORK_ERROR(ERROR_SOCKET_BIND, "Error occurred during listen: errno %d", errno);
         goto CLEAN_UP;
     }
 
     for(;;) {
-        ESP_LOGI(TAG, "Socket listening for text messages...");
+        ESP_LOGI(NETWORK_TASK_TAG, "Socket listening for text messages...");
 
         struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
-        uint addr_len = sizeof(source_addr);
+        socklen_t addr_len = sizeof(source_addr);
         int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
         if (sock < 0) {
-            ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
-            log_message(LOG_LEVEL_ERROR, "TCP server accept failed");
+            LOG_NETWORK_ERROR(ERROR_SOCKET_CONNECT, "Unable to accept connection: errno %d", errno);
             break;
         }
 
@@ -214,7 +215,7 @@ void tcp_server_task(void *pvParameters) {
         } else if (source_addr.sin6_family == PF_INET6) {
             inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
         }
-        ESP_LOGI(TAG, "Socket accepted ip address: %s", addr_str);
+        ESP_LOGI(NETWORK_TASK_TAG, "Socket accepted ip address: %s", addr_str);
 
         int len;
         std::vector<uint8_t> received_data;
@@ -226,10 +227,9 @@ void tcp_server_task(void *pvParameters) {
         } while (len > 0);
 
         if (len < 0) {
-            ESP_LOGE(TAG, "recv failed: errno %d", errno);
-            log_message(LOG_LEVEL_ERROR, "TCP receive failed");
+            LOG_NETWORK_ERROR(ERROR_SOCKET_RECEIVE, "recv failed: errno %d", errno);
         } else {
-            ESP_LOGI(TAG, "Received %d bytes", received_data.size());
+            ESP_LOGI(NETWORK_TASK_TAG, "Received %d bytes", received_data.size());
 
             // Decrypt and unpack the message
             std::string decrypted_payload = decrypt_message(received_data);
@@ -237,7 +237,7 @@ void tcp_server_task(void *pvParameters) {
                 AirComPacket *packet = air_com_packet__unpack(NULL, decrypted_payload.size(), (const uint8_t*)decrypted_payload.c_str());
                 if (packet) {
                     if (packet->payload_variant_case == AIR_COM_PACKET__PAYLOAD_VARIANT_TEXT_MESSAGE) {
-                        ESP_LOGI(TAG, "Received Text Message: '%s'", packet->text_message->text);
+                        ESP_LOGI(NETWORK_TASK_TAG, "Received Text Message: '%s'", packet->text_message->text);
                         incoming_message_t received_msg;
                         received_msg.sender_callsign = packet->from_node;
                         received_msg.message_text = packet->text_message->text;
@@ -245,12 +245,10 @@ void tcp_server_task(void *pvParameters) {
                     }
                     air_com_packet__free_unpacked(packet, NULL);
                 } else {
-                    ESP_LOGE(TAG, "Failed to unpack protobuf packet");
-                    log_message(LOG_LEVEL_ERROR, "Failed to unpack protobuf packet");
+                    LOG_NETWORK_ERROR(ERROR_INVALID_PARAMETER, "Failed to unpack protobuf packet");
                 }
             } else {
-                ESP_LOGE(TAG, "Failed to decrypt message or empty payload");
-                log_message(LOG_LEVEL_ERROR, "Failed to decrypt message or empty payload");
+                LOG_NETWORK_ERROR(ERROR_CRYPTO_DECRYPT, "Failed to decrypt message or empty payload");
             }
         }
 

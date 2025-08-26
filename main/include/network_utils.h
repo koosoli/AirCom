@@ -204,6 +204,8 @@ bool get_network_interface_info(char* interface_name, size_t name_size, uint8_t*
  */
 void network_set_debug(bool enable);
 
+int receive_udp_packet(uint8_t* rx_buffer, size_t rx_buffer_size, char* source_ip, size_t source_ip_size);
+
 #ifdef __cplusplus
 }
 #endif

@@ -5,22 +5,11 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include "shared_data.h"
+#include "safe_callback.h"
 
 // Forward declaration for MM-IoT-SDK
 class MMIoTSDK;
-
-// Forward declaration for safe callback system
-class CallbackOwner;
-class ConnectionCallback;
-class DataCallback;
-class DiscoveryCallback;
-
-// Forward declaration for a potential node info structure
-struct MeshNodeInfo {
-    std::string macAddress;
-    std::string ipv6Address;
-    // Add other relevant info like RSSI, etc.
-};
 
 // Structure to hold a cached message
 struct CachedMessage {
