@@ -23,7 +23,7 @@ idf_component_register(
         "gui_tester.cpp"
         "gui_preview.cpp"
         "error_handling.c"
-        "network_utils.c"
+        "network_utils.cpp"
         "xiao_integration_test.cpp"
         "atak_processor_task.cpp"
         "atak_task.cpp"
@@ -43,8 +43,6 @@ idf_component_register(
         libsodium
         Opus
         TinyGPSxx
-        u8g2
-        u8g2_esp32_hal
         protobuf-c
 )
 

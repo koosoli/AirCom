@@ -13,6 +13,7 @@
 #include "gui_tester.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <string>
@@ -24,10 +25,10 @@ static const char* TAG = "GUI_TESTER";
 
 // Global state
 static bool g_gui_tester_initialized = false;
-static gui_test_config_t g_test_config = {0};
+static gui_test_config_t g_test_config{};
 static bool g_test_running = false;
-static diagnostic_info_t g_diagnostics = {0};
-static system_state_t g_simulated_state = {0};
+static diagnostic_info_t g_diagnostics{};
+static system_state_t g_simulated_state{};
 static TaskHandle_t g_test_task = NULL;
 
 // Simulated UI state

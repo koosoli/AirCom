@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <inttypes.h>
 // #include "Arduino.h" // Original
 #include <limits.h>
+#include "esp_log.h"
 
 // ESP-IDF compatibility shims
 #include "freertos/FreeRTOS.h"

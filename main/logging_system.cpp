@@ -16,6 +16,7 @@
 #include <map>
 #include <mutex>
 #include <cstdarg>
+#include <inttypes.h>
 
 static const char* TAG = "LOG_SYSTEM";
 
@@ -54,7 +55,7 @@ static std::string format_log_message(const char* component, log_level_t level,
     size_t pos;
     while ((pos = result.find("%T")) != std::string::npos) {
         char timestamp[16];
-        snprintf(timestamp, sizeof(timestamp), "%u", get_current_timestamp());
+        snprintf(timestamp, sizeof(timestamp), "%" PRIu32, get_current_timestamp());
         result.replace(pos, 2, timestamp);
     }
 

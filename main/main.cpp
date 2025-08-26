@@ -32,6 +32,7 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_log.h"
+#include "include/config.h"
 #include "include/config_manager.h"
 #include "include/gps_task.h"
 #include "include/atak_task.h"
@@ -57,7 +58,7 @@
 extern "C" void app_main(void);
 
 // Tag for logging
-static const char* TAG = "AIRCOM_MAIN";
+static const char* MAIN_TAG = "AIRCOM_MAIN";
 
 // Task Handles
 static TaskHandle_t networkTaskHandle = NULL;
@@ -77,7 +78,7 @@ static TaskHandle_t networkHealthTaskHandle = NULL;
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Welcome to Project AirCom (ESP-IDF)!");
+    ESP_LOGI(MAIN_TAG, "Welcome to Project AirCom (ESP-IDF)!");
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -96,7 +97,7 @@ void app_main(void)
 
     // Initialize error handling system
     if (!error_handling_init()) {
-        ESP_LOGE(TAG, "Failed to initialize error handling system");
+        ESP_LOGE(MAIN_TAG, "Failed to initialize error handling system");
         return;
     }
 
@@ -111,7 +112,7 @@ void app_main(void)
     camera_service_init();
 
     // Create FreeRTOS tasks
-    ESP_LOGI(TAG, "Creating tasks...");
+    ESP_LOGI(MAIN_TAG, "Creating tasks...");
 
     // Optimized task scheduling for real-time performance
     // Core 0: Network and GPS processing (lower priority tasks)
@@ -165,16 +166,16 @@ void app_main(void)
                     "Failed to create Audio task", __FILE__, __LINE__, __func__, NULL, 0);
     }
 
-    ESP_LOGI(TAG, "All tasks created with optimized real-time scheduling.");
+    ESP_LOGI(MAIN_TAG, "All tasks created with optimized real-time scheduling.");
 
     // Performance monitoring - log current task priorities
-    ESP_LOGI(TAG, "Task Priority Summary:");
-    ESP_LOGI(TAG, "  Network/Network tasks: Priority 3");
-    ESP_LOGI(TAG, "  ATAK tasks: Priority 2-3");
-    ESP_LOGI(TAG, "  GPS task: Priority 4");
-    ESP_LOGI(TAG, "  UI task: Priority 8 (optimized for responsiveness)");
-    ESP_LOGI(TAG, "  Audio task: Priority 10 (optimized for timing guarantees)");
+    ESP_LOGI(MAIN_TAG, "Task Priority Summary:");
+    ESP_LOGI(MAIN_TAG, "  Network/Network tasks: Priority 3");
+    ESP_LOGI(MAIN_TAG, "  ATAK tasks: Priority 2-3");
+    ESP_LOGI(MAIN_TAG, "  GPS task: Priority 4");
+    ESP_LOGI(MAIN_TAG, "  UI task: Priority 8 (optimized for responsiveness)");
+    ESP_LOGI(MAIN_TAG, "  Audio task: Priority 10 (optimized for timing guarantees)");
 
     // Monitor task stack usage for performance validation
-    ESP_LOGI(TAG, "Performance monitoring enabled - check logs for timing violations");
+    ESP_LOGI(MAIN_TAG, "Performance monitoring enabled - check logs for timing violations");
 }

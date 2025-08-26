@@ -17,6 +17,7 @@
 #include "freertos/task.h"
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 
 static const char* TAG = "MEMORY_TRACKER";
 
@@ -225,14 +226,14 @@ bool memory_tracker_generate_report(char* report_buffer, size_t buffer_size) {
 
     snprintf(report_buffer, buffer_size,
              "Memory Report:\n"
-             "  Total Allocations: %u\n"
-             "  Total Deallocations: %u\n"
-             "  Current Allocations: %u\n"
+             "  Total Allocations: %" PRIu32 "\n"
+             "  Total Deallocations: %" PRIu32 "\n"
+             "  Current Allocations: %" PRIu32 "\n"
              "  Peak Memory Usage: %zu bytes\n"
              "  Current Memory Usage: %zu bytes\n"
-             "  Memory Leaks: %u\n"
-             "  Allocation Failures: %u\n"
-             "  Fragmentation Events: %u\n",
+             "  Memory Leaks: %" PRIu32 "\n"
+             "  Allocation Failures: %" PRIu32 "\n"
+             "  Fragmentation Events: %" PRIu32 "\n",
              stats.total_allocations,
              stats.total_deallocations,
              stats.current_allocations,

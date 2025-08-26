@@ -9,11 +9,11 @@
 
 // Array to hold the pin number for each button
 static const gpio_num_t button_pins[NUM_BUTTONS] = {
-    PIN_BUTTON_PTT,
-    PIN_BUTTON_UP,
-    PIN_BUTTON_DOWN,
-    PIN_BUTTON_SELECT,
-    PIN_BUTTON_BACK
+    (gpio_num_t)PIN_BUTTON_PTT,
+    (gpio_num_t)PIN_BUTTON_UP,
+    (gpio_num_t)PIN_BUTTON_DOWN,
+    (gpio_num_t)PIN_BUTTON_SELECT,
+    (gpio_num_t)PIN_BUTTON_BACK
 };
 
 // Internal state for each button

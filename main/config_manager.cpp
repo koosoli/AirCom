@@ -16,6 +16,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include <cstring>
+#include "esp_chip_info.h"
 #include <string>
 
 static const char* TAG = "CONFIG_MGR";
@@ -78,6 +79,7 @@ hardware_platform_t config_manager_detect_hardware(void) {
         return HW_PLATFORM_ESP32_GENERIC;
     }
 #endif
+    return HW_PLATFORM_UNKNOWN;
 }
 
 const char* config_manager_get_platform_name(hardware_platform_t platform) {

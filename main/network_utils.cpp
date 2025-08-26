@@ -21,7 +21,14 @@
 #include "lwip/err.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
-#include "lwip/netdb.h"
+#include <lwip/netdb.h>
+#include "include/logging_system.h"
+#include "include/config.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <net/if.h>
 #include <string.h>
 #include <errno.h>
 #include <time.h>
@@ -48,8 +55,13 @@ bool network_utils_init(void) {
     // Mark initialization time
     g_network_stats.last_activity_timestamp = (uint32_t)time(NULL);
 
-    log_message(LOG_LEVEL_INFO, "Network utilities initialized successfully");
+    LOG_NETWORK_INFO("Network utilities initialized successfully");
     return true;
+}
+
+int receive_udp_packet(uint8_t* rx_buffer, size_t rx_buffer_size, char* source_ip, size_t source_ip_size) {
+    // Dummy implementation
+    return 0;
 }
 
 /**
@@ -57,7 +69,7 @@ bool network_utils_init(void) {
  */
 void network_utils_deinit(void) {
     g_network_status = NETWORK_STATUS_DISCONNECTED;
-    log_message(LOG_LEVEL_INFO, "Network utilities deinitialized");
+    LOG_NETWORK_INFO("Network utilities deinitialized");
 }
 
 /**
@@ -65,13 +77,13 @@ void network_utils_deinit(void) {
  */
 bool send_tcp_message(const char* host_ip, const std::vector<uint8_t>& payload, int max_retries) {
     if (!host_ip || payload.empty() || max_retries < 0) {
-        log_message(LOG_LEVEL_ERROR, "Invalid parameters for send_tcp_message");
+        LOG_NETWORK_ERROR(ERROR_INVALID_PARAMETER, "Invalid parameters for send_tcp_message");
         g_network_stats.network_errors++;
         return false;
     }
 
     if (!is_valid_ip_format(host_ip)) {
-        log_message(LOG_LEVEL_ERROR, "Invalid IP address format: %s", host_ip);
+        LOG_NETWORK_ERROR(ERROR_INVALID_ADDRESS, "Invalid IP address format: %s", host_ip);
         g_network_stats.network_errors++;
         return false;
     }
@@ -79,10 +91,10 @@ bool send_tcp_message(const char* host_ip, const std::vector<uint8_t>& payload, 
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(NETWORK_DEFAULT_PORT);
+    server_addr.sin_port = htons(TEXT_PORT);
 
     if (inet_pton(AF_INET, host_ip, &server_addr.sin_addr) <= 0) {
-        log_message(LOG_LEVEL_ERROR, "Invalid IP address: %s", host_ip);
+        LOG_NETWORK_ERROR(ERROR_INVALID_ADDRESS, "Invalid IP address: %s", host_ip);
         g_network_stats.network_errors++;
         return false;
     }
@@ -96,7 +108,7 @@ bool send_tcp_message(const char* host_ip, const std::vector<uint8_t>& payload, 
 
         int sock = create_tcp_socket();
         if (sock < 0) {
-            log_message(LOG_LEVEL_ERROR, "Failed to create TCP socket (attempt %d)", attempt + 1);
+            LOG_NETWORK_ERROR(ERROR_SOCKET_CREATE, "Failed to create TCP socket (attempt %d)", attempt + 1);
             g_network_stats.network_errors++;
             attempt++;
             if (attempt <= max_retries) {
@@ -107,13 +119,13 @@ bool send_tcp_message(const char* host_ip, const std::vector<uint8_t>& payload, 
 
         // Set socket timeout
         if (!set_socket_timeout(sock, NETWORK_CONNECT_TIMEOUT_MS)) {
-            log_message(LOG_LEVEL_WARN, "Failed to set socket timeout");
+            LOG_NETWORK_WARNING("Failed to set socket timeout");
         }
 
         // Attempt connection
         int connect_result = connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
         if (connect_result < 0) {
-            log_message(LOG_LEVEL_ERROR, "Connection failed (attempt %d): %s", attempt + 1, strerror(errno));
+            LOG_NETWORK_ERROR(ERROR_SOCKET_CONNECT, "Connection failed (attempt %d): %s", attempt + 1, strerror(errno));
             close(sock);
             g_network_stats.failed_connections++;
             g_network_stats.timeout_errors++;
@@ -136,7 +148,7 @@ bool send_tcp_message(const char* host_ip, const std::vector<uint8_t>& payload, 
         while (total_sent < data_size) {
             int sent = send(sock, data + total_sent, data_size - total_sent, 0);
             if (sent < 0) {
-                log_message(LOG_LEVEL_ERROR, "Send failed: %s", strerror(errno));
+                LOG_NETWORK_ERROR(ERROR_SOCKET_SEND, "Send failed: %s", strerror(errno));
                 close(sock);
                 g_network_stats.network_errors++;
                 success = false;
@@ -149,7 +161,7 @@ bool send_tcp_message(const char* host_ip, const std::vector<uint8_t>& payload, 
         if (total_sent == data_size) {
             success = true;
             if (g_debug_enabled) {
-                log_message(LOG_LEVEL_DEBUG, "Successfully sent %zu bytes to %s", data_size, host_ip);
+                LOG_NETWORK_DEBUG("Successfully sent %zu bytes to %s", data_size, host_ip);
             }
         }
 
@@ -165,7 +177,7 @@ bool send_tcp_message(const char* host_ip, const std::vector<uint8_t>& payload, 
 
     if (!success) {
         g_network_status = NETWORK_STATUS_ERROR;
-        log_message(LOG_LEVEL_ERROR, "Failed to send message to %s after %d attempts", host_ip, max_retries + 1);
+        LOG_NETWORK_ERROR(ERROR_CONNECTION_LOST, "Failed to send message to %s after %d attempts", host_ip, max_retries + 1);
     }
 
     return success;
@@ -183,13 +195,13 @@ bool send_tcp_message_default(const char* host_ip, const std::vector<uint8_t>& p
  */
 bool broadcast_udp_packet(const uint8_t* payload, size_t payload_size, uint16_t port) {
     if (!payload || payload_size == 0 || payload_size > NETWORK_MAX_MESSAGE_SIZE) {
-        log_message(LOG_LEVEL_ERROR, "Invalid parameters for broadcast_udp_packet");
+        LOG_NETWORK_ERROR(ERROR_INVALID_PARAMETER, "Invalid parameters for broadcast_udp_packet");
         return false;
     }
 
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock < 0) {
-        log_message(LOG_LEVEL_ERROR, "Failed to create UDP socket: %s", strerror(errno));
+        LOG_NETWORK_ERROR(ERROR_SOCKET_CREATE, "Failed to create UDP socket: %s", strerror(errno));
         g_network_stats.network_errors++;
         return false;
     }
@@ -197,14 +209,14 @@ bool broadcast_udp_packet(const uint8_t* payload, size_t payload_size, uint16_t 
     // Set broadcast option
     int broadcast_enable = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast_enable, sizeof(broadcast_enable)) < 0) {
-        log_message(LOG_LEVEL_ERROR, "Failed to set broadcast option: %s", strerror(errno));
+        LOG_NETWORK_ERROR(ERROR_SOCKET_CREATE, "Failed to set broadcast option: %s", strerror(errno));
         close(sock);
         return false;
     }
 
     // Set socket timeout
     if (!set_socket_timeout(sock, NETWORK_SEND_TIMEOUT_MS)) {
-        log_message(LOG_LEVEL_WARN, "Failed to set UDP socket timeout");
+        LOG_NETWORK_WARNING("Failed to set UDP socket timeout");
     }
 
     struct sockaddr_in broadcast_addr;
@@ -221,7 +233,7 @@ bool broadcast_udp_packet(const uint8_t* payload, size_t payload_size, uint16_t 
         int sent = sendto(sock, payload + total_sent, payload_size - total_sent, 0,
                          (struct sockaddr*)&broadcast_addr, sizeof(broadcast_addr));
         if (sent < 0) {
-            log_message(LOG_LEVEL_ERROR, "UDP broadcast failed (attempt %d): %s", attempts + 1, strerror(errno));
+            LOG_NETWORK_ERROR(ERROR_SOCKET_SEND, "UDP broadcast failed (attempt %d): %s", attempts + 1, strerror(errno));
             attempts++;
             if (attempts < max_attempts) {
                 sleep(NETWORK_RETRY_DELAY_MS / 1000);
@@ -230,7 +242,7 @@ bool broadcast_udp_packet(const uint8_t* payload, size_t payload_size, uint16_t 
             total_sent += sent;
             g_network_stats.total_bytes_sent += sent;
             if (g_debug_enabled) {
-                log_message(LOG_LEVEL_DEBUG, "UDP broadcast sent %d bytes", sent);
+                LOG_NETWORK_DEBUG("UDP broadcast sent %d bytes", sent);
             }
         }
     }
@@ -257,7 +269,7 @@ bool get_local_ip(char* ip_buffer, size_t buffer_size) {
 
     struct ifaddrs* interfaces = NULL;
     if (getifaddrs(&interfaces) != 0) {
-        log_message(LOG_LEVEL_ERROR, "Failed to get network interfaces: %s", strerror(errno));
+        LOG_NETWORK_ERROR(ERROR_SYSTEM_OVERLOAD, "Failed to get network interfaces: %s", strerror(errno));
         return false;
     }
 
@@ -346,7 +358,7 @@ bool resolve_hostname(const char* ip, char* hostname_buffer, size_t buffer_size)
     char hbuf[NI_MAXHOST];
     int res = getnameinfo((struct sockaddr*)&sa, sizeof(sa), hbuf, sizeof(hbuf), NULL, 0, NI_NAMEREQD);
     if (res != 0) {
-        log_message(LOG_LEVEL_WARN, "Failed to resolve hostname for %s: %s", ip, gai_strerror(res));
+        LOG_NETWORK_WARNING("Failed to resolve hostname for %s: %s", ip, gai_strerror(res));
         return false;
     }
 
@@ -367,7 +379,7 @@ bool test_connectivity(const char* host_ip, uint32_t timeout_ms) {
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(NETWORK_DEFAULT_PORT);
+    server_addr.sin_port = htons(TEXT_PORT);
 
     if (inet_pton(AF_INET, host_ip, &server_addr.sin_addr) <= 0) {
         return false;
@@ -437,7 +449,7 @@ bool get_network_interface_info(char* interface_name, size_t name_size, uint8_t*
 void network_set_debug(bool enable) {
     g_debug_enabled = enable;
     if (enable) {
-        log_message(LOG_LEVEL_INFO, "Network debugging enabled");
+        LOG_NETWORK_INFO("Network debugging enabled");
     }
 }
 
@@ -451,7 +463,7 @@ void network_set_debug(bool enable) {
 static int create_tcp_socket(void) {
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
-        log_message(LOG_LEVEL_ERROR, "Failed to create TCP socket: %s", strerror(errno));
+        LOG_NETWORK_ERROR(ERROR_SOCKET_CREATE, "Failed to create TCP socket: %s", strerror(errno));
         return -1;
     }
 

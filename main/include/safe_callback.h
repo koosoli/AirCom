@@ -20,6 +20,7 @@
 #include <atomic>
 #include <string>
 #include "freertos/FreeRTOS.h"
+#include "logging_system.h"
 #include "freertos/semphr.h"
 
 class CallbackManager;

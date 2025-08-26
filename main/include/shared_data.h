@@ -26,7 +26,7 @@ struct TeammateInfo {
 
 // A structure to hold status updates for the UI
 typedef struct {
-    bool has_gps_lock;
+    uint8_t has_gps_lock;
     uint8_t contact_count; // This can be removed if we are sharing the whole list
 } ui_update_t;
 
